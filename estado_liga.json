@@ -1,0 +1,52 @@
+{
+    "jornada_actual": 1,
+    "competiciones": {
+        "SM": {
+            "nombre": "The SuperMandingo League",
+            "inicio": 1,
+            "fin": 13,
+            "rango_texto": "J1 a J4",
+            "color_bg": "#354d47",
+            "color_stripe": "#8affe2",
+            "logo": "The-Super-Mandingo-League-Logo.png"
+        },
+        "CM": {
+            "nombre": "Champions Mandinguera",
+            "inicio": 5,
+            "fin": 10,
+            "rango_texto": "Inicia J5",
+            "color_bg": "#0a192f",
+            "color_stripe": "#00d2ff",
+            "logo": "Champions.png"
+        },
+        "CS": {
+            "nombre": "Copa SeCadi, Ok?",
+            "inicio": 11,
+            "fin": 21,
+            "rango_texto": "Inicia J11",
+            "color_bg": "#ff5e7e",
+            "color_stripe": "#2d1436",
+            "logo": "Logo_Copa.png"
+        },
+        "SC": {
+            "nombre": "Supercopa de Campeones",
+            "inicio": 22,
+            "fin": 23,
+            "rango_texto": "Inicia J22",
+            "color_bg": "#37004d",
+            "color_stripe": "#fc7e00",
+            "logo": "Supercopa-Logo.png",
+            "logo_vertical": "Supercopa-Logo-vertical.png",
+            "logo_scale": 1.6
+        },
+        "GC": {
+            "nombre": "The 2Girls1Cup",
+            "inicio": 30,
+            "fin": 33,
+            "rango_texto": "Inicia J30",
+            "color_bg": "#523e00",
+            "color_stripe": "#bf9000",
+            "logo": "The-2-Girls-1-Cup-Logo.png"
+        }
+    }
+}
