@@ -1,8 +1,8 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v2.66.0
-# DESCRIPCIÓN: Tabla estilo Champions, caché TTL nativa y 
-#              mapeo exacto de jornadas de SM con la liga real.
+# VERSIÓN: v2.67.0
+# DESCRIPCIÓN: Logo ampliado, sin texto de título, caché TTL 
+#              nativa y mapeo exacto de jornadas de SM con la liga real.
 # =========================================================
 
 import base64
@@ -681,13 +681,6 @@ custom_css = """
         font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     }
     #MainMenu, footer, header {visibility: hidden;}
-    .sm-title {
-        color: #ffffff;
-        font-weight: 800;
-        letter-spacing: 1px;
-        margin-bottom: 0px;
-        text-align: center;
-    }
     .match-box {
         background: #354d47;
         border-radius: 8px;
@@ -712,24 +705,19 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 6. CABECERA PRINCIPAL
+# 6. CABECERA PRINCIPAL (SOLO LOGOTIPO AMPLIADO)
 # ---------------------------------------------------------
 if LOGO_COMP.exists():
     img_comp_b64 = get_image_base64(LOGO_COMP)
     st.markdown(
         f"""
         <div style='display: flex; justify-content: center; align-items: center; margin-bottom: 12px;'>
-            <img src='data:image/png;base64,{img_comp_b64}' width='140' alt='Logo SuperMandingo' />
+            <img src='data:image/png;base64,{img_comp_b64}' width='220' alt='Logo SuperMandingo' />
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-st.markdown(f"<h1 class='sm-title'>{NOMBRE_COMP.upper()}</h1>", unsafe_allow_html=True)
-st.markdown(
-    f"<h3 class='sm-title' style='font-size: 1.1rem; color: #8aa4ae; margin-top: 4px;'>FASE DE LIGA</h3>", 
-    unsafe_allow_html=True
-)
 st.markdown("---")
 
 # ---------------------------------------------------------
