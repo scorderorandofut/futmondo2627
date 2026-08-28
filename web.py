@@ -1,8 +1,7 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v2.67.0
-# DESCRIPCIÓN: Logo ampliado, sin texto de título, caché TTL 
-#              nativa y mapeo exacto de jornadas de SM con la liga real.
+# VERSIÓN: v2.77.0 (Actualización de detección de capitán con 'cpt')
+# DESCRIPCIÓN: Versión estable con caché, ordenación por rendimiento/nombre y etiqueta (C) usando la propiedad cpt.
 # =========================================================
 
 import base64
@@ -39,7 +38,6 @@ ABREVIATURAS = {
     "CSKAlaropa": "CSK"
 }
 
-# Equivalencias entre el nombre del calendario y el nombre devuelto por la API de Futmondo
 EQUIVALENCIAS_NOMBRES = {
     "Cskalaropa": "CSKAlaropa"
 }
@@ -181,7 +179,7 @@ CALENDARIO_JORNADAS = {
 
 
 def get_image_base64(path_str_or_path):
-    """Convierte una ruta de archivo local a cadena Base64 para HTML."""
+    """Convierte una ruta local a cadena Base64 para HTML."""
     if not path_str_or_path:
         return None
     p = Path(path_str_or_path)
@@ -192,9 +190,7 @@ def get_image_base64(path_str_or_path):
 
 
 def obtener_ruta_escudo(team_id, escudo_url_api=None):
-    """Busca primero el escudo localmente en assets/escudos/{team_id}.*
-    Si no lo encuentra, usa la URL de la API.
-    """
+    """Busca primero el escudo localmente y si no, usa la URL de la API."""
     if ESCUDOS_DIR.exists() and team_id:
         for ext in [".png", ".jpg", ".jpeg", ".webp", ".svg"]:
             escudo_local = ESCUDOS_DIR / f"{team_id}{ext}"
@@ -204,14 +200,11 @@ def obtener_ruta_escudo(team_id, escudo_url_api=None):
 
 
 def buscar_equipo_info(nombre_calendario, equipos_dict):
-    """Busca de forma flexible la información de un equipo manejando 
-    diferencias de mayúsculas, acentos o espacios entre el calendario y la API.
-    """
+    """Busca de forma flexible la información de un equipo."""
     if not equipos_dict:
         return {}
     
     nombre_busq = normalizar_nombre_equipo(nombre_calendario)
-    
     if nombre_busq in equipos_dict:
         return equipos_dict[nombre_busq]
     
@@ -234,34 +227,19 @@ def buscar_equipo_info(nombre_calendario, equipos_dict):
 # REGLA OFICIAL DE CONVERSIÓN DE PUNTOS A GOLES
 # ---------------------------------------------------------
 def puntos_a_goles_base(pts):
-    """Calcula los goles base según la tabla oficial de rangos."""
-    if pts <= 99:
-        return 0
-    elif 100 <= pts <= 119:
-        return 1
-    elif 120 <= pts <= 129:
-        return 2
-    elif 130 <= pts <= 139:
-        return 3
-    elif 140 <= pts <= 149:
-        return 4
-    elif 150 <= pts <= 159:
-        return 5
-    elif 160 <= pts <= 169:
-        return 6
-    elif 170 <= pts <= 179:
-        return 7
-    elif 180 <= pts <= 189:
-        return 8
-    else:
-        return 8 + (pts - 180) // 10
+    if pts <= 99: return 0
+    elif 100 <= pts <= 119: return 1
+    elif 120 <= pts <= 129: return 2
+    elif 130 <= pts <= 139: return 3
+    elif 140 <= pts <= 149: return 4
+    elif 150 <= pts <= 159: return 5
+    elif 160 <= pts <= 169: return 6
+    elif 170 <= pts <= 179: return 7
+    elif 180 <= pts <= 189: return 8
+    else: return 8 + (pts - 180) // 10
 
 
 def calcular_goles_partido(pts1, pts2):
-    """Calcula los goles de ambos equipos aplicando la tabla base 
-    y la regla especial de +1 gol si hay 10 o más puntos de diferencia 
-    estando en el mismo intervalo.
-    """
     g1 = puntos_a_goles_base(pts1)
     g2 = puntos_a_goles_base(pts2)
 
@@ -275,7 +253,7 @@ def calcular_goles_partido(pts1, pts2):
 
 
 # ---------------------------------------------------------
-# 2. FUNCIONES API FUTMONDO & CACHÉ NATIVA (STREAMLIT)
+# 2. FUNCIONES API FUTMONDO & CACHÉ
 # ---------------------------------------------------------
 @st.cache_data(ttl=3600)
 def login_futmondo(email, password):
@@ -286,7 +264,6 @@ def login_futmondo(email, password):
         "answer": {},
     }
     headers = {"Content-Type": "application/json"}
-
     try:
         response = requests.post(url_login, json=payload, headers=headers, timeout=10)
         response.raise_for_status()
@@ -307,13 +284,11 @@ def obtener_equipos_liga(token, userid, championship_id):
         "query": {"championshipId": championship_id},
         "answer": {},
     }
-
     try:
         response = requests.post(url, json=payload, timeout=10)
         response.raise_for_status()
         data = response.json()
         teams_list = data.get("answer", {}).get("teams", [])
-
         equipos_map = {}
         for team in teams_list:
             team_id = team.get("id") or team.get("teamid")
@@ -364,6 +339,27 @@ def obtener_ranking_jornada(token, userid, championship_id, userteam_id, round_i
         return []
 
 
+@st.cache_data(ttl=600)
+def obtener_round_lineup(token, userid, championship_id, round_id, userteam_id):
+    """Consulta la alineación detallada y puntos de un equipo en una jornada concreta."""
+    url = "https://api.futmondo.com/1/userteam/roundlineup"
+    payload = {
+        "header": {"token": token, "userid": userid},
+        "query": {
+            "championshipId": championship_id,
+            "round": round_id,
+            "userteamId": userteam_id
+        },
+        "answer": {}
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        return response.json().get("answer", {})
+    except Exception:
+        return {}
+
+
 # ---------------------------------------------------------
 # 3. CÁLCULO DINÁMICO DE CLASIFICACIÓN
 # ---------------------------------------------------------
@@ -385,7 +381,6 @@ def calcular_clasificacion_real(equipos_map, rounds_info, token, userid, champio
     for r in jornadas_cerradas:
         num_jornada = r.get("number")
         round_id = r.get("id")
-        
         ranking_data = obtener_ranking_jornada(token, userid, championship_id, userteam_id, round_id)
         
         puntos_fantasy = {}
@@ -397,7 +392,6 @@ def calcular_clasificacion_real(equipos_map, rounds_info, token, userid, champio
                 puntos_fantasy[info_eq["nombre_equipo"]] = pts
 
         partidos = CALENDARIO_JORNADAS.get(num_jornada, [])
-
         for eq1_cal, eq2_cal in partidos:
             eq1 = normalizar_nombre_equipo(eq1_cal)
             eq2 = normalizar_nombre_equipo(eq2_cal)
@@ -411,37 +405,24 @@ def calcular_clasificacion_real(equipos_map, rounds_info, token, userid, champio
 
                 gf1, gf2 = calcular_goles_partido(pts1, pts2)
 
-                if gf1 > gf2:
-                    res1, res2, res_letra1, res_letra2 = "G", "P", "G", "P"
-                elif gf1 < gf2:
-                    res1, res2, res_letra1, res_letra2 = "P", "G", "P", "G"
-                else:
-                    res1, res2, res_letra1, res_letra2 = "E", "E", "E", "E"
+                if gf1 > gf2: res1, res2, res_letra1, res_letra2 = "G", "P", "G", "P"
+                elif gf1 < gf2: res1, res2, res_letra1, res_letra2 = "P", "G", "P", "G"
+                else: res1, res2, res_letra1, res_letra2 = "E", "E", "E", "E"
 
                 stats[eq1]["J"] += 1
                 stats[eq1]["GF"] += gf1
                 stats[eq1]["GC"] += gf2
-                if res1 == "G":
-                    stats[eq1]["G"] += 1
-                    stats[eq1]["Puntos"] += 3
-                elif res1 == "E":
-                    stats[eq1]["E"] += 1
-                    stats[eq1]["Puntos"] += 1
-                else:
-                    stats[eq1]["P"] += 1
+                if res1 == "G": stats[eq1]["G"] += 1; stats[eq1]["Puntos"] += 3
+                elif res1 == "E": stats[eq1]["E"] += 1; stats[eq1]["Puntos"] += 1
+                else: stats[eq1]["P"] += 1
                 stats[eq1]["forma"][num_jornada] = res_letra1
 
                 stats[eq2]["J"] += 1
                 stats[eq2]["GF"] += gf2
                 stats[eq2]["GC"] += gf1
-                if res2 == "G":
-                    stats[eq2]["G"] += 1
-                    stats[eq2]["Puntos"] += 3
-                elif res2 == "E":
-                    stats[eq2]["E"] += 1
-                    stats[eq2]["Puntos"] += 1
-                else:
-                    stats[eq2]["P"] += 1
+                if res2 == "G": stats[eq2]["G"] += 1; stats[eq2]["Puntos"] += 3
+                elif res2 == "E": stats[eq2]["E"] += 1; stats[eq2]["Puntos"] += 1
+                else: stats[eq2]["P"] += 1
                 stats[eq2]["forma"][num_jornada] = res_letra2
 
     lista_clasif = []
@@ -449,11 +430,7 @@ def calcular_clasificacion_real(equipos_map, rounds_info, token, userid, champio
         data["DG"] = data["GF"] - data["GC"]
         lista_clasif.append(data)
 
-    lista_clasif = sorted(
-        lista_clasif, 
-        key=lambda x: (x["Puntos"], x["DG"], x["GF"], x["SUM"]), 
-        reverse=True
-    )
+    lista_clasif = sorted(lista_clasif, key=lambda x: (x["Puntos"], x["DG"], x["GF"], x["SUM"]), reverse=True)
 
     for idx, row in enumerate(lista_clasif):
         row["Pos"] = idx + 1
@@ -462,7 +439,7 @@ def calcular_clasificacion_real(equipos_map, rounds_info, token, userid, champio
 
 
 # ---------------------------------------------------------
-# 4. RENDERIZADOR DE CLASIFICACIÓN TIPO EXCEL (CHAMPIONS STYLE)
+# 4. RENDERIZADOR DE CLASIFICACIÓN TIPO EXCEL
 # ---------------------------------------------------------
 def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
     jornadas_forma = []
@@ -475,100 +452,21 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
     css_style = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap');
-
-.excel-table-container {
-    width: 100%;
-    overflow-x: auto;
-    margin-top: -3px;
-    background: #354d47;
-    border-radius: 8px;
-    padding: 8px;
-    border: 1px solid #8aa4ae;
-}
-.excel-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-family: 'Montserrat', 'Segoe UI', Roboto, sans-serif;
-    color: #ffffff;
-    font-size: 0.95rem;
-    letter-spacing: 0.5px;
-}
-.excel-table th {
-    color: #8aa4ae;
-    font-weight: 800;
-    text-align: center;
-    padding: 5px 4px;
-    font-size: 0.85rem;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-.excel-table th.th-forma {
-    border-bottom: 1px solid rgba(138, 164, 174, 0.3);
-}
-.excel-table td {
-    padding: 9px 6px;
-    text-align: center;
-    border-bottom: 1px solid rgba(138, 164, 174, 0.15);
-    vertical-align: middle;
-}
-.excel-table tr:hover {
-    background: rgba(138, 164, 174, 0.1);
-}
-.excel-table .td-pos {
-    color: #8aa4ae;
-    font-weight: 700;
-    width: 35px;
-    font-size: 0.95rem;
-    letter-spacing: 1px;
-}
-.excel-table .td-equipo {
-    text-align: left;
-    font-weight: 800;
-    font-size: 1.02rem;
-    letter-spacing: 0.8px;
-    white-space: nowrap;
-}
-.excel-table .team-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.excel-table .team-logo {
-    width: 26px;
-    height: 26px;
-    object-fit: contain;
-}
-.excel-table .pts-green {
-    background-color: #277e3c !important;
-    color: #ffffff !important;
-    font-weight: 900 !important;
-    font-size: 1.1rem !important;
-    letter-spacing: 0.5px;
-    border-radius: 4px;
-}
-.excel-table .pts-gold {
-    background-color: #b58100 !important;
-    color: #ffffff !important;
-    font-weight: 900 !important;
-    font-size: 1.1rem !important;
-    letter-spacing: 0.5px;
-    border-radius: 4px;
-}
-.excel-table .pts-red {
-    background-color: #c0392b !important;
-    color: #ffffff !important;
-    font-weight: 900 !important;
-    font-size: 1.1rem !important;
-    letter-spacing: 0.5px;
-    border-radius: 4px;
-}
-.dot {
-    height: 13px;
-    width: 13px;
-    border-radius: 50%;
-    display: inline-block;
-    margin: 0 1px;
-}
+.excel-table-container { width: 100%; overflow-x: auto; margin-top: -3px; background: #354d47; border-radius: 8px; padding: 8px; border: 1px solid #8aa4ae; box-sizing: border-box; }
+.excel-table { width: 100%; border-collapse: collapse; font-family: 'Montserrat', 'Segoe UI', Roboto, sans-serif; color: #ffffff; font-size: 0.95rem; letter-spacing: 0.5px; }
+.excel-table th { color: #8aa4ae; font-weight: 800; text-align: center; padding: 5px 4px; font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase; }
+.excel-table th.th-forma { border-bottom: 1px solid rgba(138, 164, 174, 0.3); }
+.excel-table td { padding: 9px 6px; text-align: center; border-bottom: 1px solid rgba(138, 164, 174, 0.15); vertical-align: middle; }
+.excel-table tr:hover { background: rgba(138, 164, 174, 0.1); }
+.excel-table .td-pos { color: #8aa4ae; font-weight: 700; width: 35px; font-size: 0.95rem; letter-spacing: 1px; }
+.excel-table .td-equipo { text-align: left; font-weight: 800; font-size: 1.02rem; letter-spacing: 0.8px; }
+.excel-table .team-wrapper { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.excel-table .team-wrapper span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.excel-table .team-logo { width: 26px; height: 26px; object-fit: contain; flex-shrink: 0; }
+.excel-table .pts-green { background-color: #277e3c !important; color: #ffffff !important; font-weight: 900 !important; font-size: 1.1rem !important; border-radius: 4px; }
+.excel-table .pts-gold { background-color: #b58100 !important; color: #ffffff !important; font-weight: 900 !important; font-size: 1.1rem !important; border-radius: 4px; }
+.excel-table .pts-red { background-color: #c0392b !important; color: #ffffff !important; font-weight: 900 !important; font-size: 1.1rem !important; border-radius: 4px; }
+.dot { height: 13px; width: 13px; border-radius: 50%; display: inline-block; margin: 0 1px; }
 .dot-w { background-color: #2ecc71; box-shadow: 0 0 4px rgba(46, 204, 113, 0.5); }
 .dot-d { background-color: #f1c40f; box-shadow: 0 0 4px rgba(241, 196, 15, 0.5); }
 .dot-l { background-color: #e74c3c; box-shadow: 0 0 4px rgba(231, 76, 60, 0.5); }
@@ -582,35 +480,20 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
 <tr>
     <th rowspan="2">POS</th>
     <th rowspan="2" style="text-align: left; padding-left: 28px;">EQUIPO</th>
-    <th rowspan="2">J</th>
-    <th rowspan="2">G</th>
-    <th rowspan="2">E</th>
-    <th rowspan="2">P</th>
-    <th rowspan="2">GF</th>
-    <th rowspan="2">GC</th>
-    <th rowspan="2">DG</th>
-    <th rowspan="2">PTS</th>
+    <th rowspan="2">J</th><th rowspan="2">G</th><th rowspan="2">E</th><th rowspan="2">P</th>
+    <th rowspan="2">GF</th><th rowspan="2">GC</th><th rowspan="2">DG</th><th rowspan="2">PTS</th>
     <th colspan="{len(jornadas_forma)}" class="th-forma">FORMA</th>
 </tr>
 <tr>
 """
     for j in jornadas_forma:
-        if j is not None:
-            html_body += f"<th>J{j}</th>"
-        else:
-            html_body += "<th>-</th>"
-    html_body += "\n</tr>\n</thead>\n<tbody>\n"
+        html_body += f"<th>J{j}</th>" if j is not None else "<th>-</th>"
+    html_body += "</tr></thead><tbody>"
 
     for row in datos_clasificacion:
-        if row["Pos"] == total_equipos:
-            pts_class = "pts-red"
-            border_color = "#c0392b"
-        elif row["Pos"] <= 8:
-            pts_class = "pts-green"
-            border_color = "#277e3c"
-        else:
-            pts_class = "pts-gold"
-            border_color = "#b58100"
+        if row["Pos"] == total_equipos: pts_class = "pts-red"; border_color = "#c0392b"
+        elif row["Pos"] <= 8: pts_class = "pts-green"; border_color = "#277e3c"
+        else: pts_class = "pts-gold"; border_color = "#b58100"
 
         forma_dots_html = ""
         for j in jornadas_forma:
@@ -618,23 +501,14 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
                 forma_dots_html += '<td><span style="color: #8aa4ae; font-size: 0.8rem;">-</span></td>'
             else:
                 resultado = row.get("forma", {}).get(j)
-                if resultado == "G":
-                    forma_dots_html += '<td><span class="dot dot-w" title="Victoria"></span></td>'
-                elif resultado == "E":
-                    forma_dots_html += '<td><span class="dot dot-d" title="Empate"></span></td>'
-                elif resultado == "P":
-                    forma_dots_html += '<td><span class="dot dot-l" title="Derrota"></span></td>'
-                else:
-                    forma_dots_html += '<td><span style="color: #8aa4ae; font-size: 0.8rem;">-</span></td>'
+                if resultado == "G": forma_dots_html += '<td><span class="dot dot-w"></span></td>'
+                elif resultado == "E": forma_dots_html += '<td><span class="dot dot-d"></span></td>'
+                elif resultado == "P": forma_dots_html += '<td><span class="dot dot-l"></span></td>'
+                else: forma_dots_html += '<td><span style="color: #8aa4ae; font-size: 0.8rem;">-</span></td>'
 
         escudo_val = row.get("escudo")
         if escudo_val:
-            if str(escudo_val).startswith("http"):
-                img_src = escudo_val
-            else:
-                b64 = get_image_base64(escudo_val)
-                img_src = f"data:image/png;base64,{b64}" if b64 else ""
-
+            img_src = escudo_val if str(escudo_val).startswith("http") else (f"data:image/png;base64,{get_image_base64(escudo_val)}" if get_image_base64(escudo_val) else "")
             img_html = f'<img src="{img_src}" class="team-logo"/>' if img_src else "⚽"
         else:
             img_html = "⚽"
@@ -642,19 +516,13 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
         html_body += f"""<tr>
 <td class="td-pos" style="border-right: 3px solid {border_color};">{row['Pos']}</td>
 <td class="td-equipo"><div class="team-wrapper">{img_html}<span>{row['Equipo'].upper()}</span></div></td>
-<td>{row['J']}</td>
-<td>{row['G']}</td>
-<td>{row['E']}</td>
-<td>{row['P']}</td>
-<td>{row['GF']}</td>
-<td>{row['GC']}</td>
-<td>{row['DG']}</td>
+<td>{row['J']}</td><td>{row['G']}</td><td>{row['E']}</td><td>{row['P']}</td>
+<td>{row['GF']}</td><td>{row['GC']}</td><td>{row['DG']}</td>
 <td class="{pts_class}">{row['Puntos']}</td>
 {forma_dots_html}
-</tr>
-"""
+</tr>"""
 
-    html_body += "</tbody>\n</table>\n</div>"
+    html_body += "</tbody></table></div>"
     return html_body
 
 
@@ -670,48 +538,50 @@ st.set_page_config(
 
 INICIO_SM = 1
 FIN_SM = 13
-NOMBRE_COMP = "The SuperMandingo League"
 LOGO_COMP = ASSETS_DIR / "The-Super-Mandingo-League-Logo.png"
 
 custom_css = """
 <style>
-    .stApp {
-        background-color: #11191d;
-        color: #ffffff;
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap');
+    .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
     .match-box {
-        background: #354d47;
-        border-radius: 8px;
-        padding: 8px 12px;
-        border: 1px solid #8aa4ae;
-        margin-bottom: 8px;
+        background: #354d47; border-radius: 8px; padding: 0px 12px;
+        border: 1px solid #8aa4ae; margin-bottom: 6px; height: 54px;
+        box-sizing: border-box; display: flex; align-items: center; width: 100%;
     }
-    @media (max-width: 768px) {
-        .mobile-spacer {
-            height: 25px;
-            display: block;
-        }
+    .lineup-box-left, .lineup-box-right {
+        background: #354d47; border-radius: 8px; border: 1px solid #8aa4ae; 
+        padding: 12px 10px; margin-bottom: 8px; box-sizing: border-box; width: 100%;
     }
-    @media (min-width: 769px) {
-        .mobile-spacer {
-            height: 0px;
-            display: none;
-        }
+    div.stButton {
+        margin: 0px !important; padding: 0px !important; height: 54px !important;
+        display: flex !important; align-items: center !important;
     }
+    div.stButton > button {
+        background-color: #354d47 !important; border: 1px solid #8aa4ae !important;
+        color: #ffffff !important; border-radius: 8px !important; height: 54px !important;
+        width: 100% !important; box-sizing: border-box !important; display: flex !important;
+        align-items: center !important; justify-content: center !important; padding: 0px !important;
+        margin: 0px !important; box-shadow: none !important;
+    }
+    div.stButton > button p { font-size: 1.1rem !important; color: #ffffff !important; margin: 0 !important; padding: 0 !important; }
+    div.stButton > button:hover { background-color: #435e57 !important; border-color: #ffffff !important; color: #ffffff !important; }
+    div.stButton > button:focus { border-color: #8aa4ae !important; color: #ffffff !important; box-shadow: none !important; }
+    @media (max-width: 768px) { .mobile-spacer { height: 25px; display: block; } }
+    @media (min-width: 769px) { .mobile-spacer { height: 0px; display: none; } }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 6. CABECERA PRINCIPAL (SOLO LOGOTIPO AMPLIADO)
+# 6. CABECERA PRINCIPAL
 # ---------------------------------------------------------
 if LOGO_COMP.exists():
     img_comp_b64 = get_image_base64(LOGO_COMP)
     st.markdown(
         f"""
-        <div style='display: flex; justify-content: center; align-items: center; margin-bottom: 12px;'>
+        <div style='display: flex; justify-content: center; align-items: center; margin-bottom: 8px;'>
             <img src='data:image/png;base64,{img_comp_b64}' width='220' alt='Logo SuperMandingo' />
         </div>
         """,
@@ -719,23 +589,21 @@ if LOGO_COMP.exists():
     )
 
 st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center; margin-bottom: 15px;'>
+        <h3 style='color: #ffffff; margin: 0; font-family: "Montserrat", sans-serif; letter-spacing: 1.5px; font-size: 1.2rem; font-weight: 800;'>FASE DE LIGA</h3>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------
 # 7. AUTENTICACIÓN Y CARGA DE DATOS DE FUTMONDO
 # ---------------------------------------------------------
-email = (
-    st.secrets.get("FUTMONDO_USER")
-    or st.secrets.get("futmondo", {}).get("email")
-    or "scorderorando@gmail.com"
-)
-password = st.secrets.get("FUTMONDO_PASS") or st.secrets.get(
-    "futmondo", {}
-).get("password")
-championship_id = (
-    st.secrets.get("FUTMONDO_CHAMPIONSHIP_ID")
-    or st.secrets.get("futmondo", {}).get("championship_id")
-    or "5b56e918529e47fd32faea09"
-)
+email = st.secrets.get("FUTMONDO_USER") or st.secrets.get("futmondo", {}).get("email") or "scorderorando@gmail.com"
+password = st.secrets.get("FUTMONDO_PASS") or st.secrets.get("futmondo", {}).get("password")
+championship_id = st.secrets.get("FUTMONDO_CHAMPIONSHIP_ID") or st.secrets.get("futmondo", {}).get("championship_id") or "5b56e918529e47fd32faea09"
 
 equipos = {}
 rounds_info = []
@@ -752,19 +620,15 @@ if email and password:
             
             running_rounds = [r.get("number") for r in rounds_info if r.get("status") == "running"]
             closed_rounds = [r.get("number") for r in rounds_info if r.get("status") == "closed"]
-            if running_rounds:
-                jornada_actual = running_rounds[0]
-            elif closed_rounds:
-                jornada_actual = min(FIN_SM, max(closed_rounds) + 1)
+            if running_rounds: jornada_actual = running_rounds[0]
+            elif closed_rounds: jornada_actual = min(FIN_SM, max(closed_rounds) + 1)
 
 # ---------------------------------------------------------
 # 8. GESTIÓN DE ESTADO PARA LA JORNADA SELECCIONADA
 # ---------------------------------------------------------
 jornada_key_state = "jornada_supermandingo"
 if jornada_key_state not in st.session_state:
-    st.session_state[jornada_key_state] = max(
-        INICIO_SM, min(jornada_actual, FIN_SM)
-    )
+    st.session_state[jornada_key_state] = max(INICIO_SM, min(jornada_actual, FIN_SM))
 
 jornada_seleccionada = st.session_state[jornada_key_state]
 
@@ -775,7 +639,6 @@ col_clasif, col_enf = st.columns([1.6, 1])
 
 with col_clasif:
     st.markdown(f"### 📊 CLASIFICACIÓN")
-
     if equipos and rounds_info and token and userid:
         datos_clasificacion, jornadas_jugadas_count = calcular_clasificacion_real(
             equipos, rounds_info, token, userid, championship_id, userteam_id
@@ -802,7 +665,6 @@ with col_enf:
         st.rerun()
 
     st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
-
     partidos_jornada = CALENDARIO_JORNADAS.get(jornada_elegida, [])
 
     if partidos_jornada:
@@ -811,7 +673,8 @@ with col_enf:
         round_id = round_obj.get("id") if round_obj else None
 
         puntos_jornada_sel = {}
-        if is_closed and round_id and token and userid:
+        ranking_data = []
+        if round_id and token and userid:
             ranking_data = obtener_ranking_jornada(token, userid, championship_id, userteam_id, round_id)
             for item in ranking_data:
                 nombre_api = item.get("name")
@@ -829,7 +692,7 @@ with col_enf:
         descansa_set = todos_los_equipos - equipos_jugando
         equipo_descansa = list(descansa_set)[0] if descansa_set else None
 
-        for nombre1_cal, nombre2_cal in partidos_jornada:
+        for idx, (nombre1_cal, nombre2_cal) in enumerate(partidos_jornada):
             nombre1 = normalizar_nombre_equipo(nombre1_cal)
             nombre2 = normalizar_nombre_equipo(nombre2_cal)
 
@@ -843,47 +706,101 @@ with col_enf:
             escudo2 = obtener_ruta_escudo(eq2_info.get("id"), eq2_info.get("escudo_url"))
 
             def get_img_src(escudo_val):
-                if not escudo_val:
-                    return ""
-                if str(escudo_val).startswith("http"):
-                    return escudo_val
-                else:
-                    b64 = get_image_base64(escudo_val)
-                    return f"data:image/png;base64,{b64}" if b64 else ""
+                if not escudo_val: return ""
+                if str(escudo_val).startswith("http"): return escudo_val
+                b64 = get_image_base64(escudo_val)
+                return f"data:image/png;base64,{b64}" if b64 else ""
 
             src1 = get_img_src(escudo1)
             src2 = get_img_src(escudo2)
 
-            img_tag1 = f'<img src="{src1}" width="50" style="object-fit: contain;"/>' if src1 else '⚽'
-            img_tag2 = f'<img src="{src2}" width="50" style="object-fit: contain;"/>' if src2 else '⚽'
+            img_tag1 = f'<img src="{src1}" width="40" style="object-fit: contain;"/>' if src1 else '⚽'
+            img_tag2 = f'<img src="{src2}" width="40" style="object-fit: contain;"/>' if src2 else '⚽'
 
             if is_closed:
                 pts1 = puntos_jornada_sel.get(nombre1, 0)
                 pts2 = puntos_jornada_sel.get(nombre2, 0)
-
                 gf1, gf2 = calcular_goles_partido(pts1, pts2)
-
-                centro_html = f"""<div style="text-align: center;"><div style="font-size: 1.15rem; font-weight: 800; color: #ffffff;">{gf1} - {gf2}</div><div style="font-size: 0.68rem; color: #8aa4ae; margin-top: 2px;">({pts1}p) &nbsp; ({pts2}p)</div></div>"""
+                centro_html = f"""<div style="text-align: center;"><div style="font-size: 1.1rem; font-weight: 800; color: #ffffff;">{gf1} - {gf2}</div><div style="font-size: 0.65rem; color: #8aa4ae;">({pts1}p - {pts2}p)</div></div>"""
             else:
-                centro_html = '<div style="font-size: 1.1rem; font-weight: bold; color: #8aa4ae; padding: 0 8px;">VS</div>'
+                centro_html = '<div style="font-size: 1.0rem; font-weight: bold; color: #8aa4ae;">VS</div>'
 
-            html_partido = (
-                f"<div class='match-box'>"
-                f"<div style=\"display: flex; align-items: center; justify-content: space-between; width: 100%;\">"
-                f"<div style=\"display: flex; align-items: center; gap: 8px;\">"
-                f"{img_tag1}"
-                f"<span style=\"font-size: 1.0rem; font-weight: bold; color: #ffffff;\">{abrev1}</span>"
-                f"</div>"
-                f"{centro_html}"
-                f"<div style=\"display: flex; align-items: center; gap: 8px; flex-direction: row-reverse;\">"
-                f"{img_tag2}"
-                f"<span style=\"font-size: 1.0rem; font-weight: bold; color: #ffffff;\">{abrev2}</span>"
-                f"</div>"
-                f"</div>"
-                f"</div>"
-            )
+            match_key = f"match_open_{jornada_elegida}_{idx}"
+            if match_key not in st.session_state:
+                st.session_state[match_key] = False
 
-            st.markdown(html_partido, unsafe_allow_html=True)
+            col_card, col_btn = st.columns([11, 1])
+
+            with col_card:
+                html_partido = (
+                    f"<div class='match-box'>"
+                    f"<div style=\"display: flex; align-items: center; justify-content: space-between; width: 100%;\">"
+                    f"<div style=\"display: flex; align-items: center; gap: 8px;\">{img_tag1}<span style=\"font-size: 0.95rem; font-weight: bold; color: #ffffff;\">{abrev1}</span></div>"
+                    f"{centro_html}"
+                    f"<div style=\"display: flex; align-items: center; gap: 8px; flex-direction: row-reverse;\">{img_tag2}<span style=\"font-size: 0.95rem; font-weight: bold; color: #ffffff;\">{abrev2}</span></div>"
+                    f"</div>"
+                    f"</div>"
+                )
+                st.markdown(html_partido, unsafe_allow_html=True)
+
+            with col_btn:
+                btn_label = "✕" if st.session_state[match_key] else "🔍"
+                if st.button(btn_label, key=f"btn_{match_key}", help="Ver / Ocultar jugadores", use_container_width=True):
+                    st.session_state[match_key] = not st.session_state[match_key]
+                    st.rerun()
+
+            # Desplegable con alineaciones ordenadas por puntos (desc) y nombre (asc) marcando el capitán mediante la propiedad 'cpt'
+            if st.session_state[match_key]:
+                jugadores_eq1 = []
+                jugadores_eq2 = []
+
+                eq1_team_id = eq1_info.get("id") if eq1_info else None
+                eq2_team_id = eq2_info.get("id") if eq2_info else None
+
+                if token and userid and round_id:
+                    if eq1_team_id:
+                        lineup1_answer = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id)
+                        players1 = lineup1_answer.get("players", [])
+                        for p in players1:
+                            nombre = p.get("name") or p.get("playerName") or "Jugador"
+                            pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
+                            es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
+                            jugadores_eq1.append({"nombre": nombre, "puntos": pts, "capitan": es_capitan})
+                        # Ordenación: mayor a menor puntos, y si hay empate, alfabéticamente por nombre
+                        jugadores_eq1 = sorted(jugadores_eq1, key=lambda x: (-x["puntos"], x["nombre"]))
+
+                    if eq2_team_id:
+                        lineup2_answer = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id)
+                        players2 = lineup2_answer.get("players", [])
+                        for p in players2:
+                            nombre = p.get("name") or p.get("playerName") or "Jugador"
+                            pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
+                            es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
+                            jugadores_eq2.append({"nombre": nombre, "puntos": pts, "capitan": es_capitan})
+                        # Ordenación: mayor a menor puntos, y si hay empate, alfabéticamente por nombre
+                        jugadores_eq2 = sorted(jugadores_eq2, key=lambda x: (-x["puntos"], x["nombre"]))
+
+                def render_lista_jugadores(jugadores, escudo_val, css_class="lineup-box-left"):
+                    if not jugadores:
+                        return "<div style='color: #8aa4ae; font-size: 0.85rem; padding: 6px;'>Sin datos de alineación disponibles.</div>"
+                    
+                    src_img = get_img_src(escudo_val)
+                    header_escudo = f"<div style='text-align: center; margin-bottom: 10px;'><img src='{src_img}' width='45' height='45' style='object-fit: contain;'/></div>" if src_img else "<div style='text-align: center; margin-bottom: 10px; font-size: 1.5rem;'>⚽</div>"
+
+                    html = f"<div class='{css_class}'>"
+                    html += header_escudo
+                    html += "<ul style='list-style-type: none; padding: 0; margin: 0;'>"
+                    for j in jugadores:
+                        nombre_mostrar = f"{j['nombre']} (C)" if j.get("capitan") else j['nombre']
+                        html += f"<li style='display: flex; justify-content: space-between; align-items: center; padding: 5px 2px; border-bottom: 1px solid rgba(138,164,174,0.15);'><span style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 15px; color: #ffffff;'>{nombre_mostrar}</span><strong style='color: #2ecc71; flex-shrink: 0;'>{j['puntos']} pts</strong></li>"
+                    html += "</ul></div>"
+                    return html
+
+                col_pl1, col_pl2 = st.columns(2)
+                with col_pl1:
+                    st.markdown(render_lista_jugadores(jugadores_eq1, escudo1, css_class="lineup-box-left"), unsafe_allow_html=True)
+                with col_pl2:
+                    st.markdown(render_lista_jugadores(jugadores_eq2, escudo2, css_class="lineup-box-right"), unsafe_allow_html=True)
 
         if equipo_descansa:
             abrev_desc = ABREVIATURAS.get(equipo_descansa, equipo_descansa[:3].upper())
@@ -893,13 +810,12 @@ with col_enf:
             img_desc_tag = f'<img src="{src_desc}" width="35" style="object-fit: contain; vertical-align: middle; margin-left: 10px;"/>' if src_desc else '⚽'
 
             html_descanso = (
-                f"<div style='background: #23322e; border: 1px dashed #8aa4ae; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 0.9rem;'>"
+                f"<div style='background: #23322e; border: 1px dashed #8aa4ae; border-radius: 8px; padding: 0px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 0.9rem; height: 54px; box-sizing: border-box; width: 100%;'>"
                 f"<span style=\"color: #8aa4ae; font-weight: bold; margin-right: 6px;\">DESCANSA:</span>"
                 f"<span style=\"font-weight: bold; color: #ffffff;\">{equipo_descansa.upper()} ({abrev_desc})</span>"
                 f"{img_desc_tag}"
                 f"</div>"
             )
-
             st.markdown(html_descanso, unsafe_allow_html=True)
     else:
         st.warning("No hay enfrentamientos programados para esta jornada.")
