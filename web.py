@@ -1,7 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v2.77.0 (Actualización de detección de capitán con 'cpt')
-# DESCRIPCIÓN: Versión estable con caché, ordenación por rendimiento/nombre y etiqueta (C) usando la propiedad cpt.
+# VERSIÓN: v.2.80.0 (Botones con Lupa y Cruz)
 # =========================================================
 
 import base64
@@ -545,31 +544,17 @@ custom_css = """
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&display=swap');
     .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
-    .match-box {
-        background: #354d47; border-radius: 8px; padding: 0px 12px;
-        border: 1px solid #8aa4ae; margin-bottom: 6px; height: 54px;
-        box-sizing: border-box; display: flex; align-items: center; width: 100%;
+    .match-container {
+        background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
+        padding: 8px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between;
     }
+    .match-team { display: flex; align-items: center; gap: 8px; width: 35%; font-weight: 700; font-size: 0.9rem; }
+    .match-team.right { justify-content: flex-end; text-align: right; }
+    .match-center { text-align: center; font-weight: 800; font-size: 0.9rem; color: #ffffff; width: 30%; }
     .lineup-box-left, .lineup-box-right {
         background: #354d47; border-radius: 8px; border: 1px solid #8aa4ae; 
         padding: 12px 10px; margin-bottom: 8px; box-sizing: border-box; width: 100%;
     }
-    div.stButton {
-        margin: 0px !important; padding: 0px !important; height: 54px !important;
-        display: flex !important; align-items: center !important;
-    }
-    div.stButton > button {
-        background-color: #354d47 !important; border: 1px solid #8aa4ae !important;
-        color: #ffffff !important; border-radius: 8px !important; height: 54px !important;
-        width: 100% !important; box-sizing: border-box !important; display: flex !important;
-        align-items: center !important; justify-content: center !important; padding: 0px !important;
-        margin: 0px !important; box-shadow: none !important;
-    }
-    div.stButton > button p { font-size: 1.1rem !important; color: #ffffff !important; margin: 0 !important; padding: 0 !important; }
-    div.stButton > button:hover { background-color: #435e57 !important; border-color: #ffffff !important; color: #ffffff !important; }
-    div.stButton > button:focus { border-color: #8aa4ae !important; color: #ffffff !important; box-shadow: none !important; }
-    @media (max-width: 768px) { .mobile-spacer { height: 25px; display: block; } }
-    @media (min-width: 769px) { .mobile-spacer { height: 0px; display: none; } }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -589,14 +574,6 @@ if LOGO_COMP.exists():
     )
 
 st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; margin-bottom: 15px;'>
-        <h3 style='color: #ffffff; margin: 0; font-family: "Montserrat", sans-serif; letter-spacing: 1.5px; font-size: 1.2rem; font-weight: 800;'>FASE DE LIGA</h3>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ---------------------------------------------------------
 # 7. AUTENTICACIÓN Y CARGA DE DATOS DE FUTMONDO
@@ -633,12 +610,21 @@ if jornada_key_state not in st.session_state:
 jornada_seleccionada = st.session_state[jornada_key_state]
 
 # ---------------------------------------------------------
-# 9. VISTA PRINCIPAL: CLASIFICACIÓN (IZQ) Y ENFRENTAMIENTOS (DER)
+# 9. VISTA PRINCIPAL EN COLUMNAS (LADO A LADO)
 # ---------------------------------------------------------
-col_clasif, col_enf = st.columns([1.6, 1])
+col_tabla, col_partidos = st.columns([1.35, 1], gap="medium")
 
-with col_clasif:
-    st.markdown(f"### 📊 CLASIFICACIÓN")
+# --- COLUMNA IZQUIERDA: CLASIFICACIÓN ---
+with col_tabla:
+    st.markdown(
+        """
+        <div style='margin-bottom: 5px;'>
+            <h3 style='color: #ffffff; margin: 0; font-family: "Montserrat", sans-serif; letter-spacing: 1.5px; font-size: 1.2rem; font-weight: 800;'>📊 CLASIFICACIÓN</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if equipos and rounds_info and token and userid:
         datos_clasificacion, jornadas_jugadas_count = calcular_clasificacion_real(
             equipos, rounds_info, token, userid, championship_id, userteam_id
@@ -648,14 +634,22 @@ with col_clasif:
     else:
         st.warning("Cargando datos reales de la API de Futmondo...")
 
-with col_enf:
-    st.markdown("<div class='mobile-spacer'></div>", unsafe_allow_html=True)
-    
+# --- COLUMNA DERECHA: ENFRENTAMIENTOS Y JORNADAS ---
+with col_partidos:
+    st.markdown(
+        """
+        <div style='margin-bottom: 10px;'>
+            <h3 style='color: #ffffff; margin: 0; font-family: "Montserrat", sans-serif; letter-spacing: 1.5px; font-size: 1.2rem; font-weight: 800;'>⚽ ENFRENTAMIENTOS</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     jornada_elegida = st.selectbox(
         "Selecciona la Jornada",
         options=list(range(INICIO_SM, FIN_SM + 1)),
         index=st.session_state[jornada_key_state] - INICIO_SM,
-        format_func=lambda x: f"⚽ JORNADA {x} — J{MAPEO_LIGA_REAL.get(x, x)} de Liga",
+        format_func=lambda x: f"JORNADA {x} — J{MAPEO_LIGA_REAL.get(x, x)} de Liga",
         key="combo_jornada_selector",
         label_visibility="collapsed"
     )
@@ -664,7 +658,7 @@ with col_enf:
         st.session_state[jornada_key_state] = jornada_elegida
         st.rerun()
 
-    st.markdown("<div style='margin-bottom: 8px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
     partidos_jornada = CALENDARIO_JORNADAS.get(jornada_elegida, [])
 
     if partidos_jornada:
@@ -711,45 +705,54 @@ with col_enf:
                 b64 = get_image_base64(escudo_val)
                 return f"data:image/png;base64,{b64}" if b64 else ""
 
-            src1 = get_img_src(escudo1)
-            src2 = get_img_src(escudo2)
-
-            img_tag1 = f'<img src="{src1}" width="40" style="object-fit: contain;"/>' if src1 else '⚽'
-            img_tag2 = f'<img src="{src2}" width="40" style="object-fit: contain;"/>' if src2 else '⚽'
-
             if is_closed:
                 pts1 = puntos_jornada_sel.get(nombre1, 0)
                 pts2 = puntos_jornada_sel.get(nombre2, 0)
                 gf1, gf2 = calcular_goles_partido(pts1, pts2)
-                centro_html = f"""<div style="text-align: center;"><div style="font-size: 1.1rem; font-weight: 800; color: #ffffff;">{gf1} - {gf2}</div><div style="font-size: 0.65rem; color: #8aa4ae;">({pts1}p - {pts2}p)</div></div>"""
+                centro_texto = f"{gf1} - {gf2}<br><span style='font-size:0.75rem; color:#8aa4ae;'>({pts1}p - {pts2}p)</span>"
             else:
-                centro_html = '<div style="font-size: 1.0rem; font-weight: bold; color: #8aa4ae;">VS</div>'
+                centro_texto = "VS"
 
             match_key = f"match_open_{jornada_elegida}_{idx}"
             if match_key not in st.session_state:
                 st.session_state[match_key] = False
 
-            col_card, col_btn = st.columns([11, 1])
+            # Fila visual con diseño original en columnas (Escudos, Nombres y Botón con Lupa / X)
+            src1 = get_img_src(escudo1)
+            src2 = get_img_src(escudo2)
+            img1_tag = f"<img src='{src1}' width='24' height='24' style='object-fit:contain;'/>" if src1 else "⚽"
+            img2_tag = f"<img src='{src2}' width='24' height='24' style='object-fit:contain;'/>" if src2 else "⚽"
 
-            with col_card:
-                html_partido = (
-                    f"<div class='match-box'>"
-                    f"<div style=\"display: flex; align-items: center; justify-content: space-between; width: 100%;\">"
-                    f"<div style=\"display: flex; align-items: center; gap: 8px;\">{img_tag1}<span style=\"font-size: 0.95rem; font-weight: bold; color: #ffffff;\">{abrev1}</span></div>"
-                    f"{centro_html}"
-                    f"<div style=\"display: flex; align-items: center; gap: 8px; flex-direction: row-reverse;\">{img_tag2}<span style=\"font-size: 0.95rem; font-weight: bold; color: #ffffff;\">{abrev2}</span></div>"
-                    f"</div>"
-                    f"</div>"
+            col_row, col_btn_toggle = st.columns([5, 1], gap="small")
+            
+            with col_row:
+                st.markdown(
+                    f"""
+                    <div class="match-container">
+                        <div class="match-team">
+                            {img1_tag}
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{abrev1}</span>
+                        </div>
+                        <div class="match-center">
+                            {centro_texto}
+                        </div>
+                        <div class="match-team right">
+                            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{abrev2}</span>
+                            {img2_tag}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
                 )
-                st.markdown(html_partido, unsafe_allow_html=True)
 
-            with col_btn:
-                btn_label = "✕" if st.session_state[match_key] else "🔍"
-                if st.button(btn_label, key=f"btn_{match_key}", help="Ver / Ocultar jugadores", use_container_width=True):
+            with col_btn_toggle:
+                # 🔍 Lupa cuando está cerrado, ❌ Cruz cuando está abierto
+                btn_label = "❌" if st.session_state[match_key] else "🔍"
+                if st.button(btn_label, key=f"btn_{match_key}", use_container_width=True):
                     st.session_state[match_key] = not st.session_state[match_key]
                     st.rerun()
 
-            # Desplegable con alineaciones ordenadas por puntos (desc) y nombre (asc) marcando el capitán mediante la propiedad 'cpt'
+            # Desplegable de alineaciones debajo de la fila
             if st.session_state[match_key]:
                 jugadores_eq1 = []
                 jugadores_eq2 = []
@@ -766,7 +769,6 @@ with col_enf:
                             pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
                             es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
                             jugadores_eq1.append({"nombre": nombre, "puntos": pts, "capitan": es_capitan})
-                        # Ordenación: mayor a menor puntos, y si hay empate, alfabéticamente por nombre
                         jugadores_eq1 = sorted(jugadores_eq1, key=lambda x: (-x["puntos"], x["nombre"]))
 
                     if eq2_team_id:
@@ -777,22 +779,21 @@ with col_enf:
                             pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
                             es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
                             jugadores_eq2.append({"nombre": nombre, "puntos": pts, "capitan": es_capitan})
-                        # Ordenación: mayor a menor puntos, y si hay empate, alfabéticamente por nombre
                         jugadores_eq2 = sorted(jugadores_eq2, key=lambda x: (-x["puntos"], x["nombre"]))
 
                 def render_lista_jugadores(jugadores, escudo_val, css_class="lineup-box-left"):
                     if not jugadores:
-                        return "<div style='color: #8aa4ae; font-size: 0.85rem; padding: 6px;'>Sin datos de alineación disponibles.</div>"
+                        return "<div style='color: #8aa4ae; font-size: 0.8rem; padding: 6px;'>Sin datos de alineación disponibles.</div>"
                     
                     src_img = get_img_src(escudo_val)
-                    header_escudo = f"<div style='text-align: center; margin-bottom: 10px;'><img src='{src_img}' width='45' height='45' style='object-fit: contain;'/></div>" if src_img else "<div style='text-align: center; margin-bottom: 10px; font-size: 1.5rem;'>⚽</div>"
+                    header_escudo = f"<div style='text-align: center; margin-bottom: 8px;'><img src='{src_img}' width='32' height='32' style='object-fit: contain;'/></div>" if src_img else "<div style='text-align: center; margin-bottom: 8px; font-size: 1.1rem;'>⚽</div>"
 
                     html = f"<div class='{css_class}'>"
                     html += header_escudo
                     html += "<ul style='list-style-type: none; padding: 0; margin: 0;'>"
                     for j in jugadores:
                         nombre_mostrar = f"{j['nombre']} (C)" if j.get("capitan") else j['nombre']
-                        html += f"<li style='display: flex; justify-content: space-between; align-items: center; padding: 5px 2px; border-bottom: 1px solid rgba(138,164,174,0.15);'><span style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 15px; color: #ffffff;'>{nombre_mostrar}</span><strong style='color: #2ecc71; flex-shrink: 0;'>{j['puntos']} pts</strong></li>"
+                        html += f"<li style='display: flex; justify-content: space-between; align-items: center; padding: 4px 2px; border-bottom: 1px solid rgba(138,164,174,0.15); font-size: 0.8rem;'><span style='overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; color: #ffffff;'>{nombre_mostrar}</span><strong style='color: #2ecc71; flex-shrink: 0;'>{j['puntos']} pts</strong></li>"
                     html += "</ul></div>"
                     return html
 
@@ -807,12 +808,12 @@ with col_enf:
             eq_desc_info = buscar_equipo_info(equipo_descansa, equipos)
             escudo_desc = obtener_ruta_escudo(eq_desc_info.get("id"), eq_desc_info.get("escudo_url"))
             src_desc = get_img_src(escudo_desc)
-            img_desc_tag = f'<img src="{src_desc}" width="35" style="object-fit: contain; vertical-align: middle; margin-left: 10px;"/>' if src_desc else '⚽'
+            img_desc_tag = f'<img src="{src_desc}" width="26" style="object-fit: contain; vertical-align: middle; margin-left: 6px;"/>' if src_desc else '⚽'
 
             html_descanso = (
-                f"<div style='background: #23322e; border: 1px dashed #8aa4ae; border-radius: 8px; padding: 0px 12px; margin-top: 10px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 0.9rem; height: 54px; box-sizing: border-box; width: 100%;'>"
-                f"<span style=\"color: #8aa4ae; font-weight: bold; margin-right: 6px;\">DESCANSA:</span>"
-                f"<span style=\"font-weight: bold; color: #ffffff;\">{equipo_descansa.upper()} ({abrev_desc})</span>"
+                f"<div style='background: #23322e; border: 1px dashed #8aa4ae; border-radius: 8px; padding: 0px 8px; margin-top: 8px; display: flex; align-items: center; justify-content: center; color: #ffffff; font-size: 0.8rem; height: 46px; box-sizing: border-box; width: 100%;'>"
+                f"<span style=\"color: #8aa4ae; font-weight: bold; margin-right: 4px;\">DESCANSA:</span>"
+                f"<span style=\"font-weight: bold; color: #ffffff;\">{equipo_descansa.upper()}</span>"
                 f"{img_desc_tag}"
                 f"</div>"
             )
