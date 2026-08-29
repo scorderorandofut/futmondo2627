@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.0 (Estilo de Forma Futmondo perfeccionado)
+# VERSIÓN: v.2.99.7 (Sin lupa en jornadas a futuro)
 # =========================================================
 
 import base64
@@ -475,7 +475,7 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
 .excel-table .pts-gold { background-color: #b58100 !important; color: #ffffff !important; font-weight: 900 !important; font-size: 1.1rem !important; border-radius: 4px; }
 .excel-table .pts-red { background-color: #c0392b !important; color: #ffffff !important; font-weight: 900 !important; font-size: 1.1rem !important; border-radius: 4px; }
 
-/* Estilos refinados de los círculos de forma (Estilo Futmondo idéntico a imagen) */
+/* Estilos refinados de los círculos de forma */
 .form-badge {
     width: 24px;
     height: 24px;
@@ -598,15 +598,31 @@ custom_css = """
     .match-container {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
         padding: 14px 18px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;
-        min-height: 85px; box-sizing: border-box;
+        min-height: 95px; box-sizing: border-box; width: 100%;
     }
     .match-team { display: flex; align-items: center; gap: 12px; width: 35%; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; }
     .match-team.right { justify-content: flex-end; text-align: right; }
-    .match-center { text-align: center; font-weight: 900; font-size: 1.1rem; color: #ffffff; width: 30%; }
+    
+    .match-center { text-align: center; width: 30%; display: flex; justify-content: center; align-items: center; }
+    .score-box {
+        background-color: #23322e;
+        border: 1px solid #8aa4ae;
+        border-radius: 8px;
+        padding: 0 24px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 900;
+        font-size: 2.3rem;
+        letter-spacing: 3px;
+        color: #ffffff;
+        box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
+    }
     
     .stButton > button {
-        height: 85px !important;
-        min-height: 85px !important;
+        height: 95px !important;
+        min-height: 95px !important;
         background-color: #354d47 !important;
         border: 1px solid #8aa4ae !important;
         border-radius: 8px !important;
@@ -937,9 +953,9 @@ with col_partidos:
                 aplicar_diferencia = is_closed
                 gf1, gf2 = calcular_goles_partido(pts1, pts2, aplicar_regla_diferencia=aplicar_diferencia)
                 
-                centro_texto = f"{gf1} - {gf2}<br><span style='font-size:0.8rem; color:#8aa4ae; font-weight: 600;'>({pts1}p - {pts2}p)</span>"
+                centro_texto = f'<div class="score-box">{gf1} - {gf2}</div>'
             else:
-                centro_texto = "VS"
+                centro_texto = f'<div class="score-box" style="padding: 0 24px; font-size: 1.5rem;">VS</div>'
 
             match_key = f"match_open_{jornada_elegida}_{idx}"
             if match_key not in st.session_state:
@@ -951,9 +967,168 @@ with col_partidos:
             img1_tag = f"<img src='{src1}' width='60' height='60' style='object-fit:contain;'/>" if src1 else "⚽"
             img2_tag = f"<img src='{src2}' width='60' height='60' style='object-fit:contain;'/>" if src2 else "⚽"
 
-            col_row, col_btn_toggle = st.columns([5, 1], gap="small")
-            
-            with col_row:
+            # Si la jornada está cerrada o en juego, mostramos el botón de la lupa. Si es a futuro, va a ancho completo sin botón.
+            if is_closed or is_running:
+                col_row, col_btn_toggle = st.columns([5, 1], gap="small")
+                
+                with col_row:
+                    st.markdown(
+                        f"""
+                        <div class="match-container">
+                            <div class="match-team">
+                                {img1_tag}
+                                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{abrev1}</span>
+                            </div>
+                            <div class="match-center">
+                                {centro_texto}
+                            </div>
+                            <div class="match-team right">
+                                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{abrev2}</span>
+                                {img2_tag}
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+
+                with col_btn_toggle:
+                    btn_label = "❌" if st.session_state[match_key] else "🔍"
+                    if st.button(btn_label, key=f"btn_{match_key}", use_container_width=True):
+                        st.session_state[match_key] = not st.session_state[match_key]
+                        st.rerun()
+
+                if st.session_state[match_key]:
+                    eq1_team_id = eq1_info.get("id") if eq1_info else None
+                    eq2_team_id = eq2_info.get("id") if eq2_info else None
+
+                    def procesar_alineacion_por_strategy(lineup_answer):
+                        strategy_str = lineup_answer.get("strategy") or "1-4-3-3"
+                        match_nums = re.findall(r'\d+', str(strategy_str))
+                        
+                        if len(match_nums) >= 4 and match_nums[0] == '1':
+                            lineas_def_med_del = [int(x) for x in match_nums[1:]]
+                        elif len(match_nums) == 3:
+                            lineas_def_med_del = [int(x) for x in match_nums]
+                        else:
+                            lineas_def_med_del = [4, 3, 3]
+
+                        def_count = lineas_def_med_del[0] if len(lineas_def_med_del) > 0 else 4
+                        med_count = lineas_def_med_del[1] if len(lineas_def_med_del) > 1 else 3
+                        del_count = lineas_def_med_del[2] if len(lineas_def_med_del) > 2 else 3
+
+                        raw_players = lineup_answer.get("players", [])
+                        
+                        sorted_players = sorted(
+                            raw_players, 
+                            key=lambda x: x.get("position", 99) if isinstance(x.get("position", 99), int) else 99
+                        )
+
+                        por = []
+                        todos_campo = []
+                        
+                        for p in sorted_players:
+                            raw_name = p.get("name") or p.get("playerName") or "Jugador"
+                            nombre = formatear_nombre_futmondo(raw_name)
+                            
+                            pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
+                            es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
+                            pos_val = p.get("position")
+                            
+                            j_obj = {"nombre": nombre, "puntos": pts, "capitan": es_capitan, "position": pos_val}
+                            
+                            if pos_val == 10 or pos_val == "10":
+                                por.append(j_obj)
+                            else:
+                                todos_campo.append(j_obj)
+
+                        delanteros = todos_campo[:del_count]
+                        centrocampistas = todos_campo[del_count : del_count + med_count]
+                        defensas = todos_campo[del_count + med_count:]
+                        
+                        if len(todos_campo) > (del_count + med_count + def_count):
+                            defensas.extend(todos_campo[del_count + med_count + def_count:])
+
+                        delanteros = sorted(delanteros, key=lambda x: x.get("position", 99))
+                        centrocampistas = sorted(centrocampistas, key=lambda x: x.get("position", 99))
+                        defensas = sorted(defensas, key=lambda x: x.get("position", 99))
+
+                        filas_campo = [defensas, centrocampistas, delanteros]
+
+                        return por, filas_campo
+
+                    if token and userid and round_id:
+                        l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
+                        l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
+                        
+                        por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
+                        por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
+                    else:
+                        por1, filas1 = [], []
+                        por2, filas2 = [], []
+
+                    def construir_fila_html(jugadores):
+                        if not jugadores:
+                            return ""
+                        html = '<div class="field-row">'
+                        for j in jugadores:
+                            nombre_mostrar = j['nombre']
+                            pts = j.get('puntos', 0)
+                            es_capitan = j.get('capitan', False)
+                            
+                            if es_capitan:
+                                if pts > 0:
+                                    pts_class = " player-pts-captain"
+                                else:
+                                    pts_class = " player-pts-zero player-pts-captain-zero"
+                            else:
+                                pts_class = " player-pts-zero" if pts == 0 else ""
+
+                            html += f'<div class="player-card"><div class="player-name">{nombre_mostrar}</div><div class="player-pts{pts_class}">{pts}</div></div>'
+                        html += '</div>'
+                        return html
+
+                    def construir_campo_tactico(nombre_eq, escudo_url, por, filas_campo):
+                        src_esc = get_img_src(escudo_url)
+                        header_img = f"<img src='{src_esc}' width='18' height='18' style='object-fit:contain; vertical-align:middle;'/>" if src_esc else "⚽ "
+                        
+                        todos_jugadores = por + [j for fila in filas_campo for j in fila]
+                        total_pts = sum(j.get('puntos', 0) for j in todos_jugadores)
+
+                        filas_html_str = ""
+                        for fila in reversed(filas_campo):
+                            filas_html_str += construir_fila_html(fila)
+                        
+                        filas_html_str += construir_fila_html(por)
+
+                        return (
+                            f'<div style="flex: 1; min-width: 0;">'
+                            f'<div class="soccer-field">'
+                            f'<div class="field-header-top-left">'
+                            f'{header_img}<span style="color: #ffffff; font-weight: 800; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">{nombre_eq.upper()}</span>'
+                            f'</div>'
+                            f'<div class="field-header-top-right">'
+                            f'{total_pts} pts'
+                            f'</div>'
+                            f'<div class="field-line-center"></div>'
+                            f'{filas_html_str}'
+                            f'</div>'
+                            f'</div>'
+                        )
+
+                    campo1_html = construir_campo_tactico(nombre1, escudo1, por1, filas1)
+                    campo2_html = construir_campo_tactico(nombre2, escudo2, por2, filas2)
+
+                    tarjeta_unificada_html = (
+                        f'<div class="lineup-unified-card">'
+                        f'<div class="fields-flex-container">'
+                        f'{campo1_html}'
+                        f'{campo2_html}'
+                        f'</div>'
+                        f'</div>'
+                    )
+                    st.markdown(tarjeta_unificada_html, unsafe_allow_html=True)
+            else:
+                # Jornada a futuro: sin botón ni lupa, ocupa todo el ancho
                 st.markdown(
                     f"""
                     <div class="match-container">
@@ -972,143 +1147,6 @@ with col_partidos:
                     """,
                     unsafe_allow_html=True
                 )
-
-            with col_btn_toggle:
-                btn_label = "❌" if st.session_state[match_key] else "🔍"
-                if st.button(btn_label, key=f"btn_{match_key}", use_container_width=True):
-                    st.session_state[match_key] = not st.session_state[match_key]
-                    st.rerun()
-
-            if st.session_state[match_key]:
-                eq1_team_id = eq1_info.get("id") if eq1_info else None
-                eq2_team_id = eq2_info.get("id") if eq2_info else None
-
-                def procesar_alineacion_por_strategy(lineup_answer):
-                    strategy_str = lineup_answer.get("strategy") or "1-4-3-3"
-                    match_nums = re.findall(r'\d+', str(strategy_str))
-                    
-                    if len(match_nums) >= 4 and match_nums[0] == '1':
-                        lineas_def_med_del = [int(x) for x in match_nums[1:]]
-                    elif len(match_nums) == 3:
-                        lineas_def_med_del = [int(x) for x in match_nums]
-                    else:
-                        lineas_def_med_del = [4, 3, 3]
-
-                    def_count = lineas_def_med_del[0] if len(lineas_def_med_del) > 0 else 4
-                    med_count = lineas_def_med_del[1] if len(lineas_def_med_del) > 1 else 3
-                    del_count = lineas_def_med_del[2] if len(lineas_def_med_del) > 2 else 3
-
-                    raw_players = lineup_answer.get("players", [])
-                    
-                    sorted_players = sorted(
-                        raw_players, 
-                        key=lambda x: x.get("position", 99) if isinstance(x.get("position", 99), int) else 99
-                    )
-
-                    por = []
-                    todos_campo = []
-                    
-                    for p in sorted_players:
-                        raw_name = p.get("name") or p.get("playerName") or "Jugador"
-                        nombre = formatear_nombre_futmondo(raw_name)
-                        
-                        pts = p.get("customPoints") if p.get("customPoints") is not None else p.get("points", 0)
-                        es_capitan = bool(p.get("cpt") or p.get("captain") or p.get("isCaptain") or p.get("is_captain"))
-                        pos_val = p.get("position")
-                        
-                        j_obj = {"nombre": nombre, "puntos": pts, "capitan": es_capitan, "position": pos_val}
-                        
-                        if pos_val == 10 or pos_val == "10":
-                            por.append(j_obj)
-                        else:
-                            todos_campo.append(j_obj)
-
-                    delanteros = todos_campo[:del_count]
-                    centrocampistas = todos_campo[del_count : del_count + med_count]
-                    defensas = todos_campo[del_count + med_count:]
-                    
-                    if len(todos_campo) > (del_count + med_count + def_count):
-                        defensas.extend(todos_campo[del_count + med_count + def_count:])
-
-                    delanteros = sorted(delanteros, key=lambda x: x.get("position", 99))
-                    centrocampistas = sorted(centrocampistas, key=lambda x: x.get("position", 99))
-                    defensas = sorted(defensas, key=lambda x: x.get("position", 99))
-
-                    filas_campo = [defensas, centrocampistas, delanteros]
-
-                    return por, filas_campo
-
-                if token and userid and round_id:
-                    l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
-                    l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
-                    
-                    por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
-                    por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
-                else:
-                    por1, filas1 = [], []
-                    por2, filas2 = [], []
-
-                def construir_fila_html(jugadores):
-                    if not jugadores:
-                        return ""
-                    html = '<div class="field-row">'
-                    for j in jugadores:
-                        nombre_mostrar = j['nombre']
-                        pts = j.get('puntos', 0)
-                        es_capitan = j.get('capitan', False)
-                        
-                        if es_capitan:
-                            if pts > 0:
-                                pts_class = " player-pts-captain"
-                            else:
-                                pts_class = " player-pts-zero player-pts-captain-zero"
-                        else:
-                            pts_class = " player-pts-zero" if pts == 0 else ""
-
-                        html += f'<div class="player-card"><div class="player-name">{nombre_mostrar}</div><div class="player-pts{pts_class}">{pts}</div></div>'
-                    html += '</div>'
-                    return html
-
-                def construir_campo_tactico(nombre_eq, escudo_url, por, filas_campo):
-                    src_esc = get_img_src(escudo_url)
-                    header_img = f"<img src='{src_esc}' width='18' height='18' style='object-fit:contain; vertical-align:middle;'/>" if src_esc else "⚽ "
-                    
-                    todos_jugadores = por + [j for fila in filas_campo for j in fila]
-                    total_pts = sum(j.get('puntos', 0) for j in todos_jugadores)
-
-                    filas_html_str = ""
-                    for fila in reversed(filas_campo):
-                        filas_html_str += construir_fila_html(fila)
-                    
-                    filas_html_str += construir_fila_html(por)
-
-                    return (
-                        f'<div style="flex: 1; min-width: 0;">'
-                        f'<div class="soccer-field">'
-                        f'<div class="field-header-top-left">'
-                        f'{header_img}<span style="color: #ffffff; font-weight: 800; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">{nombre_eq.upper()}</span>'
-                        f'</div>'
-                        f'<div class="field-header-top-right">'
-                        f'{total_pts} pts'
-                        f'</div>'
-                        f'<div class="field-line-center"></div>'
-                        f'{filas_html_str}'
-                        f'</div>'
-                        f'</div>'
-                    )
-
-                campo1_html = construir_campo_tactico(nombre1, escudo1, por1, filas1)
-                campo2_html = construir_campo_tactico(nombre2, escudo2, por2, filas2)
-
-                tarjeta_unificada_html = (
-                    f'<div class="lineup-unified-card">'
-                    f'<div class="fields-flex-container">'
-                    f'{campo1_html}'
-                    f'{campo2_html}'
-                    f'</div>'
-                    f'</div>'
-                )
-                st.markdown(tarjeta_unificada_html, unsafe_allow_html=True)
 
         if equipo_descansa:
             abrev_desc = ABREVIATURAS.get(equipo_descansa, equipo_descansa[:3].upper())
