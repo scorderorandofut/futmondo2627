@@ -604,6 +604,8 @@ custom_css = """
         opacity: 0 !important;
         pointer-events: none !important;
     }
+
+    [data-testid="stspinner"] code { display: none !important; }
     
     .match-container {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
