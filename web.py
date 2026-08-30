@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.22 (Spinner personalizado y ocultación de status widget)
+# VERSIÓN: v.2.99.26 (Corrección de margen para botón desplegable)
 # =========================================================
 
 import base64
@@ -600,7 +600,7 @@ custom_css = """
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
         padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
         min-height: 95px; box-sizing: border-box; width: 100%;
-        margin-bottom: 0px;
+        margin-bottom: 14px;
     }
     .match-team { display: flex; align-items: center; gap: 12px; width: 35%; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; }
     .match-team.right { justify-content: flex-end; text-align: right; }
@@ -622,10 +622,10 @@ custom_css = """
         box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
     }
     
-    /* Botón desplegable adaptado a columnas nativas */
+    /* Botón desplegable adaptado a columnas nativas (Margen ajustado a -18px para eliminar separación) */
     div[data-testid="stButton"] {
         width: 100% !important;
-        margin-top: -10px !important;
+        margin-top: -20px !important;
         margin-bottom: 18px !important;
         z-index: 5 !important;
     }
@@ -655,6 +655,7 @@ custom_css = """
         .match-container {
             min-height: auto !important;
             padding: 10px 12px !important;
+            margin-bottom: 12px !important;
         }
         .score-box {
             font-size: 1.5rem !important;
@@ -663,16 +664,14 @@ custom_css = """
             letter-spacing: 1px !important;
         }
         
-        /* Contenedor del botón centrado y con solapamiento en móvil */
         div.row-widget.stButton, div[data-testid="stButton"] {
-            margin-top: -24px !important;
+            margin-top: -36px !important;
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
             z-index: 5 !important;
         }
         
-        /* Botón pequeño, centrado y fundido con la tarjeta (sin borde superior) */
         div[data-testid="stButton"] button {
             min-height: 22px !important;
             height: 24px !important;
@@ -691,31 +690,26 @@ custom_css = """
         padding: 14px 18px; margin-bottom: 12px; box-sizing: border-box; width: 100%;
     }
 
-    .fields-flex-container {
-        display: flex;
-        gap: 12px;
-        width: 100%;
-    }
-
-    .soccer-field {
-        background: linear-gradient(135deg, #236136 0%, #154222 100%);
+    /* Estilos para el Campo Único en Horizontal (Apaisado) */
+    .soccer-field-single {
+        background: linear-gradient(90deg, #154222 0%, #236136 50%, #154222 100%);
         border: 2px solid rgba(255, 255, 255, 0.4);
         border-radius: 8px;
-        padding: 38px 6px 12px 6px;
+        padding: 38px 10px 12px 10px;
         position: relative;
         display: flex;
-        flex-direction: column;
         justify-content: space-between;
-        min-height: 380px;
+        align-items: center;
+        min-height: 340px;
         box-sizing: border-box;
         box-shadow: inset 0 0 15px rgba(0,0,0,0.5);
     }
-    .field-line-center {
+    .field-line-vertical {
         position: absolute;
-        top: 50%;
-        left: 0;
-        right: 0;
-        height: 1px;
+        left: 50%;
+        top: 0;
+        bottom: 0;
+        width: 1px;
         background: rgba(255, 255, 255, 0.3);
         pointer-events: none;
     }
@@ -736,38 +730,52 @@ custom_css = """
         position: absolute;
         top: 8px;
         right: 10px;
-        font-weight: 900;
-        font-size: 0.85rem;
-        color: #2ecc71;
+        display: flex;
+        align-items: center;
+        gap: 6px;
         z-index: 5;
-        background: rgba(0, 0, 0, 0.6);
+        background: rgba(0, 0, 0, 0.4);
         padding: 3px 8px;
         border-radius: 4px;
-        border: 1px solid rgba(46, 204, 113, 0.3);
-        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        border: 1px solid rgba(255, 255, 255, 0.2);
     }
 
-    .field-row {
+    /* Clases responsivas para alternar entre Nombre completo y Abreviatura */
+    .team-name-full { display: inline; }
+    .team-name-abbr { display: none; }
+
+    .team-pitch-half {
         display: flex;
-        justify-content: center;
-        gap: 6px;
+        justify-content: space-around;
+        align-items: center;
+        width: 48%;
+        height: 100%;
         z-index: 2;
-        margin: 4px 0;
-        width: 100%;
+        gap: 4px;
     }
+
+    .field-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        height: 100%;
+    }
+
     .player-card {
         background: rgba(0, 0, 0, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.3);
         border-radius: 6px;
-        padding: 4px 5px;
+        padding: 4px 4px;
         text-align: center;
-        max-width: 78px;
-        min-width: 54px;
+        max-width: 74px;
+        min-width: 50px;
         box-sizing: border-box;
         box-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
     .player-name {
-        font-size: 0.62rem;
+        font-size: 0.58rem;
         color: #ffffff;
         font-weight: 700;
         white-space: nowrap;
@@ -775,12 +783,12 @@ custom_css = """
         text-overflow: ellipsis;
     }
     .player-pts {
-        width: 24px;
-        height: 24px;
+        width: 22px;
+        height: 22px;
         border-radius: 50%;
         background-color: #2ecc71;
         color: #151e19;
-        font-size: 0.68rem;
+        font-size: 0.62rem;
         font-weight: 900;
         display: flex;
         align-items: center;
@@ -802,26 +810,27 @@ custom_css = """
     }
 
     @media (max-width: 768px) {
-        .fields-flex-container {
-            flex-direction: column !important;
-            gap: 16px !important;
-        }
-        .soccer-field {
-            min-height: 320px !important;
+        .soccer-field-single {
+            min-height: 290px !important;
             padding: 34px 4px 8px 4px !important;
+            overflow-x: auto !important;
         }
+        /* Mostrar abreviaturas y ocultar nombres largos en móvil */
+        .team-name-full { display: none; }
+        .team-name-abbr { display: inline; }
+
         .player-card {
-            min-width: 46px !important;
-            max-width: 68px !important;
-            padding: 3px 3px !important;
+            min-width: 42px !important;
+            max-width: 60px !important;
+            padding: 2px 2px !important;
         }
         .player-name {
-            font-size: 0.55rem !important;
+            font-size: 0.5rem !important;
         }
         .player-pts {
-            width: 22px;
-            height: 22px;
-            font-size: 0.6rem;
+            width: 20px;
+            height: 20px;
+            font-size: 0.55rem;
         }
     }
 </style>
@@ -1093,7 +1102,6 @@ with col_partidos:
                     return por, filas_campo
 
                 if token and userid and round_id:
-                    # Creamos un contenedor vacío para mostrar un spinner personalizado sin rastro de Streamlit
                     load_placeholder = st.empty()
                     load_placeholder.markdown("""
                         <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; color: #2ecc71; font-weight: 700; font-family: 'Montserrat', sans-serif;">
@@ -1108,7 +1116,6 @@ with col_partidos:
                     l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
                     l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
                     
-                    # Limpiamos el mensaje de carga una vez finalizado
                     load_placeholder.empty()
 
                     por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
@@ -1117,10 +1124,10 @@ with col_partidos:
                     por1, filas1 = [], []
                     por2, filas2 = [], []
 
-                def construir_fila_html(jugadores):
+                def construir_columna_html(jugadores):
                     if not jugadores:
                         return ""
-                    html = '<div class="field-row">'
+                    html = '<div class="field-column">'
                     for j in jugadores:
                         nombre_mostrar = j['nombre']
                         pts = j.get('puntos', 0)
@@ -1138,46 +1145,40 @@ with col_partidos:
                     html += '</div>'
                     return html
 
-                def construir_campo_tactico(nombre_eq, escudo_url, por, filas_campo):
-                    src_esc = get_img_src(escudo_url)
-                    header_img = f"<img src='{src_esc}' width='18' height='18' style='object-fit:contain; vertical-align:middle;'/>" if src_esc else "⚽ "
+                def construir_campo_unico_partido(nombre1, abrev1, escudo1, por1, filas1, nombre2, abrev2, escudo2, por2, filas2):
+                    src_esc1 = get_img_src(escudo1)
+                    src_esc2 = get_img_src(escudo2)
                     
-                    todos_jugadores = por + [j for fila in filas_campo for j in fila]
-                    total_pts = sum(j.get('puntos', 0) for j in todos_jugadores)
+                    header_img1 = f"<img src='{src_esc1}' width='18' height='18' style='object-fit:contain; vertical-align:middle;'/>" if src_esc1 else "⚽ "
+                    header_img2 = f"<img src='{src_esc2}' width='18' height='18' style='object-fit:contain; vertical-align:middle;'/>" if src_esc2 else "⚽ "
+                    
+                    todos1 = por1 + [j for fila in filas1 for j in fila]
+                    todos2 = por2 + [j for fila in filas2 for j in fila]
+                    total_pts1 = sum(j.get('puntos', 0) for j in todos1)
+                    total_pts2 = sum(j.get('puntos', 0) for j in todos2)
 
-                    filas_html_str = ""
-                    for fila in reversed(filas_campo):
-                        filas_html_str += construir_fila_html(fila)
-                    
-                    filas_html_str += construir_fila_html(por)
+                    cols1_html = construir_columna_html(por1)
+                    for fila in filas1:
+                        cols1_html += construir_columna_html(fila)
+
+                    cols2_html = ""
+                    for fila in reversed(filas2):
+                        cols2_html += construir_columna_html(fila)
+                    cols2_html += construir_columna_html(por2)
 
                     return (
-                        f'<div style="flex: 1; min-width: 0;">'
-                        f'<div class="soccer-field">'
-                        f'<div class="field-header-top-left">'
-                        f'{header_img}<span style="color: #ffffff; font-weight: 800; font-size: 0.8rem; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">{nombre_eq.upper()}</span>'
-                        f'</div>'
-                        f'<div class="field-header-top-right">'
-                        f'{total_pts} pts'
-                        f'</div>'
-                        f'<div class="field-line-center"></div>'
-                        f'{filas_html_str}'
+                        f'<div class="lineup-unified-card">'
+                        f'<div class="soccer-field-single">'
+                        f'<div class="field-header-top-left">{header_img1}<span style="color: #ffffff; font-weight: 800; font-size: 0.78rem;"><span class="team-name-full">{nombre1.upper()}</span><span class="team-name-abbr">{abrev1}</span></span><span style="color: #2ecc71; font-weight: 900; font-size: 0.78rem; margin-left: 4px;">({total_pts1} pts)</span></div>'
+                        f'<div class="field-header-top-right"><span style="color: #2ecc71; font-weight: 900; font-size: 0.78rem; margin-right: 4px;">({total_pts2} pts)</span><span style="color: #ffffff; font-weight: 800; font-size: 0.78rem;"><span class="team-name-full">{nombre2.upper()}</span><span class="team-name-abbr">{abrev2}</span></span>{header_img2}</div>'
+                        f'<div class="field-line-vertical"></div>'
+                        f'<div class="team-pitch-half">{cols1_html}</div>'
+                        f'<div class="team-pitch-half">{cols2_html}</div>'
                         f'</div>'
                         f'</div>'
                     )
 
-                campo1_html = construir_campo_tactico(nombre1, escudo1, por1, filas1)
-                campo2_html = construir_campo_tactico(nombre2, escudo2, por2, filas2)
-
-                tarjeta_unificada_html = (
-                    f'<div class="lineup-unified-card">'
-                    f'<div class="fields-flex-container">'
-                    f'{campo1_html}'
-                    f'{campo2_html}'
-                    f'</div>'
-                    f'</div>'
-                )
-                st.markdown(tarjeta_unificada_html, unsafe_allow_html=True)
+                st.markdown(construir_campo_unico_partido(nombre1, abrev1, escudo1, por1, filas1, nombre2, abrev2, escudo2, por2, filas2), unsafe_allow_html=True)
 
         if equipo_descansa:
             abrev_desc = ABREVIATURAS.get(equipo_descansa, equipo_descansa[:3].upper())
