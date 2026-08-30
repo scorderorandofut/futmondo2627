@@ -264,7 +264,7 @@ def calcular_goles_partido(pts1, pts2, aplicar_regla_diferencia=True):
 # ---------------------------------------------------------
 # 2. FUNCIONES API FUTMONDO & CACHÉ
 # ---------------------------------------------------------
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600, show_spinner=False)
 def login_futmondo(email, password):
     url_login = "https://api.futmondo.com/5/login/with_mail"
     payload = {
@@ -285,7 +285,7 @@ def login_futmondo(email, password):
         return None, None
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def obtener_equipos_liga(token, userid, championship_id):
     url = "https://api.futmondo.com/2/championship/teams"
     payload = {
@@ -312,7 +312,7 @@ def obtener_equipos_liga(token, userid, championship_id):
         return {}
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def obtener_jornadas_usuario(token, userid, championship_id, userteam_id):
     url = "https://api.futmondo.com/1/userteam/rounds"
     payload = {
@@ -328,7 +328,7 @@ def obtener_jornadas_usuario(token, userid, championship_id, userteam_id):
         return []
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def obtener_ranking_jornada(token, userid, championship_id, userteam_id, round_id):
     url = "https://api.futmondo.com/1/ranking/round"
     payload = {
@@ -348,7 +348,7 @@ def obtener_ranking_jornada(token, userid, championship_id, userteam_id, round_i
         return []
 
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=600, show_spinner=False)
 def obtener_round_lineup(token, userid, championship_id, round_id, userteam_id):
     """Consulta la alineación detallada y puntos de un equipo en una jornada concreta."""
     url = "https://api.futmondo.com/1/userteam/roundlineup"
