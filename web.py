@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.23 (Separación vertical en partidos y spinner personalizado)
+# VERSIÓN: v.2.99.24 (Doble logo en la cabecera)
 # =========================================================
 
 import base64
@@ -588,6 +588,7 @@ st.set_page_config(
 INICIO_SM = 1
 FIN_SM = 13
 LOGO_COMP = ASSETS_DIR / "The-Super-Mandingo-League-Logo.png"
+LOGO_NEW = ASSETS_DIR / "The-2-Girls-1-Cup-Logo.png"
 
 # Estilos CSS generales
 custom_css = """
@@ -830,14 +831,24 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 6. CABECERA PRINCIPAL
+# 6. CABECERA PRINCIPAL (DOBLE LOGO)
 # ---------------------------------------------------------
-if LOGO_COMP.exists():
-    img_comp_b64 = get_image_base64(LOGO_COMP)
+logo_comp_exists = LOGO_COMP.exists()
+logo_new_exists = LOGO_NEW.exists()
+
+if logo_comp_exists or logo_new_exists:
+    img_comp_b64 = get_image_base64(LOGO_COMP) if logo_comp_exists else None
+    img_new_b64 = get_image_base64(LOGO_NEW) if logo_new_exists else None
+    
+    img_comp_tag = f"<img src='data:image/png;base64,{img_comp_b64}' width='200' alt='Logo SuperMandingo' style='object-fit: contain;' />" if img_comp_b64 else ""
+    img_new_tag = f"<img src='data:image/png;base64,{img_new_b64}' width='140' alt='Nuevo Logo' style='object-fit: contain;' />" if img_new_b64 else ""
+    
     st.markdown(
         f"""
-        <div style='display: flex; justify-content: center; align-items: center; margin-bottom: 8px;'>
-            <img src='data:image/png;base64,{img_comp_b64}' width='220' alt='Logo SuperMandingo' />
+        <div style='display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 8px;'>
+            {img_comp_tag}
+            <span style='font-size: 2.2rem; font-weight: 900; color: #8aa4ae; font-family: "Montserrat", sans-serif;'>&amp;</span>
+            {img_new_tag}
         </div>
         """,
         unsafe_allow_html=True,
@@ -1094,7 +1105,6 @@ with col_partidos:
                     return por, filas_campo
 
                 if token and userid and round_id:
-                    # Creamos un contenedor vacío para mostrar un spinner personalizado sin rastro de Streamlit
                     load_placeholder = st.empty()
                     load_placeholder.markdown("""
                         <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; color: #2ecc71; font-weight: 700; font-family: 'Montserrat', sans-serif;">
@@ -1109,7 +1119,6 @@ with col_partidos:
                     l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
                     l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
                     
-                    # Limpiamos el mensaje de carga una vez finalizado
                     load_placeholder.empty()
 
                     por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
