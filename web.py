@@ -596,9 +596,13 @@ custom_css = """
     .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
     
-    /* Ocultar el widget flotante de estado ("Running...") de Streamlit */
-    [data-testid="stStatusWidget"] {
+    /* Ocultar por completo el aviso flotante de "Running..." de Streamlit */
+    [data-testid="stStatusWidget"],
+    .stStatusWidget {
         display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
     }
     
     .match-container {
