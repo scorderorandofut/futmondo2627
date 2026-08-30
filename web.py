@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.21 (Botón superpuesto y centrado en móvil)
+# VERSIÓN: v.2.99.22 (Spinner personalizado y ocultación de status widget)
 # =========================================================
 
 import base64
@@ -596,6 +596,11 @@ custom_css = """
     .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
     
+    /* Ocultar el widget flotante de estado ("Running...") de Streamlit */
+    [data-testid="stStatusWidget"] {
+        display: none !important;
+    }
+    
     .match-container {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
         padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
@@ -1027,7 +1032,6 @@ with col_partidos:
             if is_closed or is_running:
                 btn_label = "▲" if st.session_state[match_key] else "▼"
                 
-                # Proporción exacta 3.5 - 3.0 - 3.5 (idéntica al ancho de la tarjeta HTML superior)
                 _, col_btn_centro, _ = st.columns([3.5, 3.0, 3.5])
                 with col_btn_centro:
                     if st.button(btn_label, key=f"btn_{match_key}", use_container_width=True):
@@ -1094,8 +1098,9 @@ with col_partidos:
                     return por, filas_campo
 
                 if token and userid and round_id:
-                    l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
-                    l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
+                    with st.spinner("Cargando alineaciones..."):
+                        l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
+                        l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
                     
                     por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
                     por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
