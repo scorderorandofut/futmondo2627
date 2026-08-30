@@ -625,7 +625,7 @@ custom_css = """
     /* Botón desplegable adaptado a columnas nativas */
     div[data-testid="stButton"] {
         width: 100% !important;
-        margin-top: -10px !important;
+        margin-top: -18px !important;
         margin-bottom: 18px !important;
         z-index: 5 !important;
     }
@@ -666,7 +666,7 @@ custom_css = """
         
         /* Contenedor del botón centrado y con solapamiento en móvil */
         div.row-widget.stButton, div[data-testid="stButton"] {
-            margin-top: -24px !important;
+            margin-top: -36px !important;
             display: flex !important;
             justify-content: center !important;
             width: 100% !important;
