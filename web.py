@@ -596,17 +596,6 @@ custom_css = """
     .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
     
-    /* Ocultar por completo el aviso flotante de "Running..." de Streamlit */
-    [data-testid="stStatusWidget"],
-    .stStatusWidget {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
-    }
-
-    [data-testid="stspinner"] code { display: none !important; }
-    
     .match-container {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
         padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
@@ -1104,10 +1093,24 @@ with col_partidos:
                     return por, filas_campo
 
                 if token and userid and round_id:
-                    with st.spinner("Cargando alineaciones..."):
-                        l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
-                        l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
+                    # Creamos un contenedor vacío para mostrar un spinner personalizado sin rastro de Streamlit
+                    load_placeholder = st.empty()
+                    load_placeholder.markdown("""
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; color: #2ecc71; font-weight: 700; font-family: 'Montserrat', sans-serif;">
+                            <div style="width: 18px; height: 18px; border: 3px solid #2ecc71; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            Cargando alineaciones...
+                        </div>
+                        <style>
+                        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                        </style>
+                    """, unsafe_allow_html=True)
+
+                    l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
+                    l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
                     
+                    # Limpiamos el mensaje de carga una vez finalizado
+                    load_placeholder.empty()
+
                     por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
                     por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
                 else:
