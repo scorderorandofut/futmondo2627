@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.24 (Doble logo en la cabecera)
+# VERSIÓN: v.2.99.34 (Estado del partido optimizado)
 # =========================================================
 
 import base64
@@ -466,7 +466,7 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
 .excel-table th, .excel-table td, .excel-table tr, .excel-table thead, .excel-table tbody { border: none !important; border-top: none !important; border-bottom: none !important; border-left: none !important; border-right: none !important; }
 .excel-table th { color: #8aa4ae; font-weight: 800; text-align: center; padding: 5px 4px; font-size: 0.85rem; letter-spacing: 1px; text-transform: uppercase; }
 .excel-table td { padding: 9px 6px; text-align: center; vertical-align: middle; }
-.excel-table .td-pos { color: #8aa4ae; font-weight: 700; width: 35px; font-size: 0.95rem; letter-spacing: 1px; }
+.excel-table .td-pos { color: #8aa4ae; font-weight: 700; width: 35px; font-size: 0.95rem; letter-spacing: 1px; padding: 0 !important; }
 .excel-table .td-equipo { text-align: left; font-weight: 800; font-size: 1.02rem; letter-spacing: 0.8px; }
 .excel-table .team-wrapper { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .excel-table .team-wrapper span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -563,7 +563,12 @@ def render_tabla_clasificacion(datos_clasificacion, jornada_sel):
             img_html = "⚽"
 
         html_body += f"""<tr style="background-color: {row_bg};">
-<td class="td-pos" style="border-right: 3px solid {border_color};">{row['Pos']}</td>
+<td class="td-pos">
+    <div style="display: flex; align-items: center; height: 100%;">
+        <div style="flex: 1; text-align: center; padding: 9px 4px;">{row['Pos']}</div>
+        <div style="width: 5px; background-color: {border_color}; align-self: stretch; min-height: 38px;"></div>
+    </div>
+</td>
 <td class="td-equipo"><div class="team-wrapper">{img_html}<span>{row['Equipo'].upper()}</span></div></td>
 <td>{row['J']}</td><td>{row['G']}</td><td>{row['E']}</td><td>{row['P']}</td>
 <td>{row['GF']}</td><td>{row['GC']}</td><td>{row['DG']}</td>
@@ -597,16 +602,49 @@ custom_css = """
     .stApp { background-color: #11191d; color: #ffffff; font-family: 'Segoe UI', Roboto, sans-serif; }
     #MainMenu, footer, header {visibility: hidden;}
     
+    /* Contenedor adaptativo de los logos de cabecera (Horizontal y centrado) */
+    .header-logos {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 24px;
+        margin-bottom: 8px;
+    }
+    .header-logos img {
+        object-fit: contain;
+    }
+
+    @media (max-width: 768px) {
+        .header-logos {
+            flex-direction: row !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 10px !important;
+            text-align: center !important;
+            flex-wrap: nowrap !important;
+            overflow: hidden !important;
+        }
+        .header-logos img {
+            max-width: 100px !important;
+            max-height: 45px !important;
+            width: auto !important;
+            height: auto !important;
+        }
+        .header-logos span {
+            font-size: 1.4rem !important;
+        }
+    }
+    
     .match-container {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
         padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;
         min-height: 95px; box-sizing: border-box; width: 100%;
-        margin-bottom: 14px; /* <--- Espacio vertical entre partidos en web */
+        margin-bottom: 14px;
     }
     .match-team { display: flex; align-items: center; gap: 12px; width: 35%; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.5px; }
     .match-team.right { justify-content: flex-end; text-align: right; }
     
-    .match-center { text-align: center; width: 30%; display: flex; justify-content: center; align-items: center; }
+    .match-center { text-align: center; width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 1px; }
     .score-box {
         background-color: #23322e;
         border: 1px solid #8aa4ae;
@@ -623,11 +661,10 @@ custom_css = """
         box-shadow: inset 0 1px 4px rgba(0,0,0,0.4);
     }
     
-    /* Botón desplegable adaptado a columnas nativas */
     div[data-testid="stButton"] {
         width: 100% !important;
         margin-top: -18px !important;
-        margin-bottom: 18px !important;
+        margin-bottom: 0px !important;
         z-index: 5 !important;
     }
     div[data-testid="stButton"] > button {
@@ -656,7 +693,7 @@ custom_css = """
         .match-container {
             min-height: auto !important;
             padding: 10px 12px !important;
-            margin-bottom: 12px !important; /* <--- Espacio vertical entre partidos en móvil */
+            margin-bottom: 14px !important;
         }
         .score-box {
             font-size: 1.5rem !important;
@@ -665,7 +702,6 @@ custom_css = """
             letter-spacing: 1px !important;
         }
         
-        /* Contenedor del botón centrado y con solapamiento en móvil */
         div.row-widget.stButton, div[data-testid="stButton"] {
             margin-top: -36px !important;
             display: flex !important;
@@ -674,7 +710,6 @@ custom_css = """
             z-index: 5 !important;
         }
         
-        /* Botón pequeño, centrado y fundido con la tarjeta (sin borde superior) */
         div[data-testid="stButton"] button {
             min-height: 22px !important;
             height: 24px !important;
@@ -690,7 +725,7 @@ custom_css = """
 
     .lineup-unified-card {
         background-color: #354d47; border: 1px solid #8aa4ae; border-radius: 8px;
-        padding: 14px 18px; margin-bottom: 12px; box-sizing: border-box; width: 100%;
+        padding: 14px 18px; margin-bottom: 14px; box-sizing: border-box; width: 100%;
     }
 
     .fields-flex-container {
@@ -831,7 +866,7 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# 6. CABECERA PRINCIPAL (DOBLE LOGO)
+# 6. CABECERA PRINCIPAL (DOBLE LOGO RESPONSIVO)
 # ---------------------------------------------------------
 logo_comp_exists = LOGO_COMP.exists()
 logo_new_exists = LOGO_NEW.exists()
@@ -840,12 +875,12 @@ if logo_comp_exists or logo_new_exists:
     img_comp_b64 = get_image_base64(LOGO_COMP) if logo_comp_exists else None
     img_new_b64 = get_image_base64(LOGO_NEW) if logo_new_exists else None
     
-    img_comp_tag = f"<img src='data:image/png;base64,{img_comp_b64}' width='200' alt='Logo SuperMandingo' style='object-fit: contain;' />" if img_comp_b64 else ""
-    img_new_tag = f"<img src='data:image/png;base64,{img_new_b64}' width='140' alt='Nuevo Logo' style='object-fit: contain;' />" if img_new_b64 else ""
+    img_comp_tag = f"<img src='data:image/png;base64,{img_comp_b64}' width='200' alt='Logo SuperMandingo' />" if img_comp_b64 else ""
+    img_new_tag = f"<img src='data:image/png;base64,{img_new_b64}' width='140' alt='Nuevo Logo' />" if img_new_b64 else ""
     
     st.markdown(
         f"""
-        <div style='display: flex; justify-content: center; align-items: center; gap: 24px; margin-bottom: 8px;'>
+        <div class="header-logos">
             {img_comp_tag}
             <span style='font-size: 2.2rem; font-weight: 900; color: #8aa4ae; font-family: "Montserrat", sans-serif;'>&amp;</span>
             {img_new_tag}
@@ -952,8 +987,7 @@ with col_partidos:
 
     if partidos_jornada:
         round_obj = next((r for r in rounds_info if r.get("number") == jornada_elegida), None)
-        is_closed = round_obj and round_obj.get("status") == "closed"
-        is_running = round_obj and round_obj.get("status") == "running"
+        round_status = round_obj.get("status") if round_obj else None
         round_id = round_obj.get("id") if round_obj else None
 
         puntos_jornada_sel = {}
@@ -992,10 +1026,40 @@ with col_partidos:
             eq1_info = buscar_equipo_info(nombre1_cal, equipos)
             eq2_info = buscar_equipo_info(nombre2_cal, equipos)
 
-            escudo1 = obtener_ruta_escudo(eq1_info.get("id"), eq1_info.get("escudo_url"))
-            escudo2 = obtener_ruta_escudo(eq2_info.get("id"), eq2_info.get("escudo_url"))
+            eq1_team_id = eq1_info.get("id") if eq1_info else None
+            eq2_team_id = eq2_info.get("id") if eq2_info else None
 
-            if is_closed or is_running:
+            escudo1 = obtener_ruta_escudo(eq1_team_id, eq1_info.get("escudo_url"))
+            escudo2 = obtener_ruta_escudo(eq2_team_id, eq2_info.get("escudo_url"))
+
+            # Obtener alineaciones para calcular los puntos y estado de los jugadores del partido
+            l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if (round_id and token and userid and eq1_team_id) else {}
+            l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if (round_id and token and userid and eq2_team_id) else {}
+
+            # Lógica para determinar el estado del partido según los jugadores puntuados
+            def determinar_estado_partido(r_status, l1, l2):
+                if r_status == "closed":
+                    return "Finalizado"
+                p1 = l1.get("players", []) if l1 else []
+                p2 = l2.get("players", []) if l2 else []
+                todos = p1 + p2
+                if not todos:
+                    return "En juego" if r_status == "running" else "Por comenzar"
+                
+                puntuados = [p for p in todos if (p.get("points", 0) != 0 or p.get("customPoints", 0) is not None and p.get("customPoints", 0) != 0)]
+                if len(puntuados) == 0:
+                    return "Por comenzar"
+                elif len(puntuados) >= len(todos):
+                    return "Finalizado"
+                else:
+                    return "En juego"
+
+            estado_partido_str = determinar_estado_partido(round_status, l1_ans, l2_ans)
+
+            is_closed = round_status == "closed"
+            is_running = round_status == "running" or estado_partido_str in ["En juego", "Finalizado"]
+
+            if is_closed or is_running or estado_partido_str != "Por comenzar":
                 pts1 = puntos_jornada_sel.get(nombre1, 0)
                 pts2 = puntos_jornada_sel.get(nombre2, 0)
                 
@@ -1016,7 +1080,6 @@ with col_partidos:
             img1_tag = f"<img src='{src1}' width='60' height='60' style='object-fit:contain;'/>" if src1 else "⚽"
             img2_tag = f"<img src='{src2}' width='60' height='60' style='object-fit:contain;'/>" if src2 else "⚽"
 
-            # Tarjeta principal del partido
             st.markdown(
                 f"""
                 <div class="match-container">
@@ -1025,6 +1088,7 @@ with col_partidos:
                         <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{abrev1}</span>
                     </div>
                     <div class="match-center">
+                        <div style="font-size: 0.74rem; font-style: italic; font-weight: 600; color: #a2b8c2; letter-spacing: 0.5px; margin-top: -8px;">{estado_partido_str}</div>
                         {centro_texto}
                     </div>
                     <div class="match-team right">
@@ -1036,7 +1100,7 @@ with col_partidos:
                 unsafe_allow_html=True
             )
 
-            if is_closed or is_running:
+            if is_closed or is_running or estado_partido_str != "Por comenzar":
                 btn_label = "▲" if st.session_state[match_key] else "▼"
                 
                 _, col_btn_centro, _ = st.columns([3.5, 3.0, 3.5])
@@ -1045,10 +1109,7 @@ with col_partidos:
                         st.session_state[match_key] = not st.session_state[match_key]
                         st.rerun()
 
-            if (is_closed or is_running) and st.session_state[match_key]:
-                eq1_team_id = eq1_info.get("id") if eq1_info else None
-                eq2_team_id = eq2_info.get("id") if eq2_info else None
-
+            if (is_closed or is_running or estado_partido_str != "Por comenzar") and st.session_state[match_key]:
                 def procesar_alineacion_por_strategy(lineup_answer):
                     strategy_str = lineup_answer.get("strategy") or "1-4-3-3"
                     match_nums = re.findall(r'\d+', str(strategy_str))
@@ -1104,28 +1165,8 @@ with col_partidos:
 
                     return por, filas_campo
 
-                if token and userid and round_id:
-                    load_placeholder = st.empty()
-                    load_placeholder.markdown("""
-                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; padding: 15px; color: #2ecc71; font-weight: 700; font-family: 'Montserrat', sans-serif;">
-                            <div style="width: 18px; height: 18px; border: 3px solid #2ecc71; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                            Cargando alineaciones...
-                        </div>
-                        <style>
-                        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                        </style>
-                    """, unsafe_allow_html=True)
-
-                    l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if eq1_team_id else {}
-                    l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if eq2_team_id else {}
-                    
-                    load_placeholder.empty()
-
-                    por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
-                    por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
-                else:
-                    por1, filas1 = [], []
-                    por2, filas2 = [], []
+                por1, filas1 = procesar_alineacion_por_strategy(l1_ans)
+                por2, filas2 = procesar_alineacion_por_strategy(l2_ans)
 
                 def construir_fila_html(jugadores):
                     if not jugadores:
