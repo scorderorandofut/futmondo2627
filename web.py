@@ -1,6 +1,6 @@
 # =========================================================
 # ARCHIVO: web.py
-# VERSIÓN: v.2.99.34 (Estado del partido optimizado)
+# VERSIÓN: v.2.99.35 (Optimización de velocidad con ThreadPool)
 # =========================================================
 
 import base64
@@ -9,6 +9,7 @@ import re
 from pathlib import Path
 import requests
 import streamlit as st
+from concurrent.futures import ThreadPoolExecutor
 
 # ---------------------------------------------------------
 # 1. ARCHIVOS Y RUTAS BASE
@@ -1001,6 +1002,27 @@ with col_partidos:
                 if info_eq and "nombre_equipo" in info_eq:
                     puntos_jornada_sel[info_eq["nombre_equipo"]] = pts
 
+        # --- OPTIMIZACIÓN: Cargar todas las alineaciones de la jornada en paralelo ---
+        team_ids_jornada = []
+        for n1_cal, n2_cal in partidos_jornada:
+            eq1_info_temp = buscar_equipo_info(n1_cal, equipos)
+            eq2_info_temp = buscar_equipo_info(n2_cal, equipos)
+            if eq1_info_temp and eq1_info_temp.get("id"):
+                team_ids_jornada.append(eq1_info_temp.get("id"))
+            if eq2_info_temp and eq2_info_temp.get("id"):
+                team_ids_jornada.append(eq2_info_temp.get("id"))
+
+        lineups_cache = {}
+        if round_id and token and userid and team_ids_jornada:
+            def fetch_lineup(t_id):
+                return t_id, obtener_round_lineup(token, userid, championship_id, round_id, t_id)
+            
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                results = executor.map(fetch_lineup, list(set(team_ids_jornada)))
+                for t_id, l_data in results:
+                    lineups_cache[t_id] = l_data
+        # --------------------------------------------------------------------------
+
         equipos_jugando = set()
         for n1_cal, n2_cal in partidos_jornada:
             equipos_jugando.add(normalizar_nombre_equipo(n1_cal))
@@ -1032,9 +1054,9 @@ with col_partidos:
             escudo1 = obtener_ruta_escudo(eq1_team_id, eq1_info.get("escudo_url"))
             escudo2 = obtener_ruta_escudo(eq2_team_id, eq2_info.get("escudo_url"))
 
-            # Obtener alineaciones para calcular los puntos y estado de los jugadores del partido
-            l1_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq1_team_id) if (round_id and token and userid and eq1_team_id) else {}
-            l2_ans = obtener_round_lineup(token, userid, championship_id, round_id, eq2_team_id) if (round_id and token and userid and eq2_team_id) else {}
+            # Obtener alineaciones instantáneamente desde el diccionario precargado en paralelo
+            l1_ans = lineups_cache.get(eq1_team_id, {}) if eq1_team_id else {}
+            l2_ans = lineups_cache.get(eq2_team_id, {}) if eq2_team_id else {}
 
             # Lógica para determinar el estado del partido según los jugadores puntuados
             def determinar_estado_partido(r_status, l1, l2):
